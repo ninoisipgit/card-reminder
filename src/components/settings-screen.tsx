@@ -298,7 +298,7 @@ export function SettingsScreen() {
       <Section title="UPDATES">
         <Row
           label="Get the latest version"
-          detail="Downloads the newest build. Open the file and tap Update; your data stays."
+          detail="Downloads the newest published version. Open the file and tap Update; your data stays."
         />
         <Button label="Download latest version" variant="secondary" onPress={() => Linking.openURL(LATEST_APK_URL)} />
       </Section>

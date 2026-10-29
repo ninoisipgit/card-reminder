@@ -1,5 +1,8 @@
-# Builds a release APK on every push to master and publishes it as the
-# "latest" GitHub release. On your phone, open
+# Builds a release APK only when you publish, and makes it the "latest"
+# GitHub release. Publish by either:
+#   - pushing a version tag:   git tag v1.0.1  then  git push origin v1.0.1
+#   - or GitHub > Actions > Android APK > Run workflow
+# Ordinary pushes do NOT build. On your phone, open
 #   https://github.com/ninoisipgit/card-reminder/releases/latest/download/card-reminder.apk
 # and tap Update. Your data stays because the signing key and app id are the
 # same, and each build has a higher version code than the last.
@@ -7,8 +10,8 @@ name: Android APK
 
 on:
   push:
-    branches: [master]
-  workflow_dispatch: # also allows "Run workflow" by hand from the Actions tab
+    tags: ['v*'] # git push origin v1.0.1
+  workflow_dispatch: # "Run workflow" button in the Actions tab
 
 permissions:
   contents: write # to create the release
@@ -65,10 +68,11 @@ jobs:
       - name: Publish as the latest release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: build-${{ github.run_number }}
-          name: Build ${{ github.run_number }}
+          # A version tag becomes the release (v1.0.1); a manual run gets build-N
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('build-{0}', github.run_number) }}
+          name: ${{ github.ref_type == 'tag' && github.ref_name || format('Build {0}', github.run_number) }} (build ${{ github.run_number }})
           body: |
-            Built from ${{ github.sha }}: ${{ github.event.head_commit.message || 'manual run' }}
+            Built from ${{ github.sha }}.
 
             On your phone: download card-reminder.apk below and tap Update.
           files: card-reminder.apk

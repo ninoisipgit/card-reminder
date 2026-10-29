@@ -18,11 +18,18 @@ Everything stays on the phone. There is no account and no server. Backups are a 
 | Debts | Each loan is its own record under a person. "They owe me" / "I owe them". Partial repayments; a debt settles itself when fully repaid. Overpayment is blocked. People sorted by soonest due date. |
 | Paid history | Settled debts grouped by person, searchable. |
 | Widget | Cards and debts due within 7 days, light and dark. Rows open the card or debt; Add card / Add debt buttons. |
-| Settings | Reminder time, quiet at night, notification and battery help, test reminder, backup save/restore, theme, delete all data, download latest version. |
+| Settings | Reminder time, quiet at night, notification and battery help, test reminder, backup save/restore, theme, delete all data, download latest published version. |
 
 ## Getting updates on your phone
 
-Every push to `master` builds a new APK with GitHub Actions (`.github/workflows/android-apk.yml`) and publishes it here:
+A new APK is built only when you publish (`.github/workflows/android-apk.yml`). Publish by pushing a version tag:
+
+```bash
+git tag v1.0.1
+git push origin v1.0.1
+```
+
+or with **GitHub → Actions → Android APK → Run workflow**. Ordinary pushes don't build. The newest APK is always here:
 
 https://github.com/ninoisipgit/card-reminder/releases/latest/download/card-reminder.apk
 
