@@ -20,6 +20,7 @@ import {
   deletePerson,
   deleteRepayment,
   getDebt,
+  getPerson,
   getTotals,
   listDebtsDueSoon,
   listOpenDebts,
@@ -136,7 +137,10 @@ describe('debts', () => {
     const db = await freshDb();
     await addDebt(db, lend());
     await addDebt(db, lend({ personName: '  mama ' }));
-    assert.equal((await listPeople(db)).length, 1);
+    const people = await listPeople(db);
+    assert.equal(people.length, 1);
+    assert.deepEqual(await getPerson(db, people[0].id), { id: people[0].id, name: 'Mama' });
+    await assert.rejects(getPerson(db, 999), rejectsWith('NOT_FOUND'));
   });
 
   it('partial repayments reduce the balance; the last one settles the debt', async () => {

@@ -138,6 +138,12 @@ export async function deletePerson(db: Db, id: number): Promise<void> {
   if (res.changes === 0) throw new DataError('NOT_FOUND', 'Person not found.');
 }
 
+export async function getPerson(db: Db, id: number): Promise<Person> {
+  const p = await db.getFirstAsync<Person>('SELECT id, name FROM people WHERE id = ?', id);
+  if (!p) throw new DataError('NOT_FOUND', 'Person not found.');
+  return p;
+}
+
 export async function listPeople(db: Db): Promise<Person[]> {
   return db.getAllAsync<Person>('SELECT id, name FROM people ORDER BY name COLLATE NOCASE');
 }

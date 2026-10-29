@@ -171,7 +171,7 @@ function DebtRow({ debt, today, p }: { debt: Debt; today: IsoDate; p: Palette })
   const tone = overdue ? { fg: p.overdue, bg: p.overdueBg } : { fg: p.dueSoon, bg: p.dueSoonBg };
   return (
     <Row
-      uri="cardreminder://debts"
+      uri={`cardreminder://debts/debt/${debt.id}`}
       title={`${who} ${amount}`}
       subtitle={`Due ${shortDate(due)}`}
       badge={<Badge text={dueLabel(daysLeft)} fg={tone.fg} bg={tone.bg} />}
