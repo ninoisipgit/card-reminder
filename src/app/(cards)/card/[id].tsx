@@ -1,6 +1,6 @@
 /** Card detail: this month's cycle, "Mark paid" with undo, and the full payment history. */
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -54,7 +54,8 @@ function HistoryRow({ payment, onUndo }: { payment: CardPayment; onUndo?: () => 
 
 export default function CardDetailScreen() {
   const theme = useTheme();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // `pay=1` comes from tapping the card on the home-screen widget: ask to mark it paid right away.
+  const { id, pay } = useLocalSearchParams<{ id: string; pay?: string }>();
   const cardId = Number(id);
   const [status, setStatus] = useState<CardStatus | null>(null);
   const [history, setHistory] = useState<CardPayment[]>([]);
@@ -116,6 +117,23 @@ export default function CardDetailScreen() {
       setBusy(false);
     }
   };
+
+  const askedToPay = useRef(false);
+  useEffect(() => {
+    if (pay !== '1') {
+      askedToPay.current = false; // ready for the next widget tap
+      return;
+    }
+    if (!status || askedToPay.current) return;
+    askedToPay.current = true;
+    router.setParams({ pay: undefined });
+    const { card: c, current: cycle, state: st } = status;
+    if (st === 'paid' || toDayNumber(todayIso()) < toDayNumber(cycle.statement)) return; // nothing to pay yet
+    Alert.alert(`Mark ${c.name} as paid?`, `Statement ${shortDate(cycle.statement)} · due ${shortDate(cycle.due)}.`, [
+      { text: 'Not yet', style: 'cancel' },
+      { text: 'Mark as paid', onPress: markPaid },
+    ]);
+  }, [pay, status]);
 
   const confirmUndo = () =>
     Alert.alert('Undo this payment?', 'The cycle will show as unpaid again and its reminders come back.', [

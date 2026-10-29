@@ -151,7 +151,8 @@ function CardRow({ status, p }: { status: CardStatus; p: Palette }) {
   const subtitle = `Statement ${shortDate(current.statement)} · Due ${shortDate(current.due)}`;
   return (
     <Row
-      uri={`cardreminder://card/${card.id}`}
+      // Opens the card and asks "Mark as paid?" (unless it's already paid).
+      uri={state === 'paid' ? `cardreminder://card/${card.id}` : `cardreminder://card/${card.id}?pay=1`}
       title={title}
       subtitle={subtitle}
       badge={<Badge text={badgeText} fg={tone.fg} bg={tone.bg} />}

@@ -168,7 +168,7 @@ export async function syncCardReminders(
       content: {
         title: p.title,
         body: p.body,
-        data: { kind: CARD_REMINDER_KIND, url: `/card/${p.cardId}`, scheduledFor: timeLabel(p.at), atMs: p.at.getTime() },
+        data: { kind: CARD_REMINDER_KIND, url: `/card/${p.cardId}?pay=1`, scheduledFor: timeLabel(p.at), atMs: p.at.getTime() },
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,

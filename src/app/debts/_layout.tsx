@@ -1,5 +1,8 @@
 import { Stack } from 'expo-router';
 
+/** Links straight to a detail screen (widget, reminders) still have the list to go back to. */
+export const unstable_settings = { initialRouteName: 'index' };
+
 export default function DebtsLayout() {
   return (
     <Stack>
