@@ -1,19 +1,23 @@
 /** How a card's state is worded and colored, shared by the app screens. */
-import { dueLabel, shortDate, type CardStatus, type CycleState } from './cycles';
+import { dueLabel, shortDate, type CardStatus } from './cycles';
 
 export type Tone = 'danger' | 'warning' | 'success' | 'neutral';
 
-export function cardTone(state: CycleState): Tone {
-  switch (state) {
-    case 'overdue':
-      return 'danger';
-    case 'dueSoon':
-      return 'warning';
-    case 'paid':
-      return 'success';
-    default:
-      return 'neutral';
-  }
+/** Yellow from this many days before the due date. */
+export const WARNING_DAYS = 7;
+/** Red from this many days before the due date, and when overdue. */
+export const URGENT_DAYS = 3;
+
+/** Color by how close the due date is: red at 3 days or less (or overdue), yellow at 7 or less. */
+export function toneForDaysLeft(daysLeft: number): Tone {
+  if (daysLeft <= URGENT_DAYS) return 'danger';
+  if (daysLeft <= WARNING_DAYS) return 'warning';
+  return 'neutral';
+}
+
+/** Paid is green; otherwise colored by days left to the due date. */
+export function cardTone(status: CardStatus): Tone {
+  return status.state === 'paid' ? 'success' : toneForDaysLeft(status.daysLeft);
 }
 
 /** 'Paid ✓', 'Due in 2 days', '1 day overdue' */

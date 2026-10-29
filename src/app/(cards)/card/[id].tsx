@@ -176,8 +176,9 @@ export default function CardDetailScreen() {
         }}
       />
       <ScrollView style={{ backgroundColor: theme.background }} contentContainerStyle={styles.content}>
-        <View style={[styles.panel, { backgroundColor: state === 'overdue' ? theme.dangerBackground : theme.backgroundElement }]}>
-          <StatusBadge text={cardBadgeText(status)} tone={cardTone(state)} />
+        <View
+          style={[styles.panel, { backgroundColor: cardTone(status) === 'danger' ? theme.dangerBackground : theme.backgroundElement }]}>
+          <StatusBadge text={cardBadgeText(status)} tone={cardTone(status)} />
           {overdueCount > 1 ? (
             <ThemedText type="small" style={{ color: theme.danger }}>
               {overdueCount} months unpaid. The oldest is shown; mark each one paid in turn.

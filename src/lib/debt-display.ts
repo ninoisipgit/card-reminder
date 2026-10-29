@@ -1,7 +1,7 @@
 /** How debts are worded and colored, shared by the Debts screens. */
 import type { Debt } from '@/data/debts';
 
-import type { Tone } from './card-display';
+import { toneForDaysLeft, type Tone } from './card-display';
 import { dueLabel, shortDate, toDayNumber, type IsoDate } from './cycles';
 import { formatPeso } from './money';
 
@@ -24,10 +24,8 @@ export function debtBadge(debt: Debt, today: IsoDate): { text: string; tone: Ton
   const state = debtDueState(debt, today);
   if (state === 'settled') return { text: 'Paid ✓', tone: 'success' };
   if (!debt.dueOn || (state !== 'overdue' && state !== 'dueSoon')) return null;
-  return {
-    text: dueLabel(toDayNumber(debt.dueOn) - toDayNumber(today)),
-    tone: state === 'overdue' ? 'danger' : 'warning',
-  };
+  const daysLeft = toDayNumber(debt.dueOn) - toDayNumber(today);
+  return { text: dueLabel(daysLeft), tone: toneForDaysLeft(daysLeft) };
 }
 
 /** 'Mama owes you' / 'You owe Kuya Ben' */

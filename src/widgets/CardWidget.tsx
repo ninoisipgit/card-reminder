@@ -9,6 +9,7 @@ import {
 
 import type { Debt } from '@/data/debts';
 import { toDayNumber, dueLabel, shortDate, type CardStatus, type IsoDate } from '@/lib/cycles';
+import { cardTone, toneForDaysLeft, type Tone } from '@/lib/card-display';
 import { formatPeso } from '@/lib/money';
 
 export type WidgetTheme = 'light' | 'dark';
@@ -162,16 +163,24 @@ function AddButton({ label, uri, p }: { label: string; uri: string; p: Palette }
   );
 }
 
+/** Same colors as the app: red at 3 days or less / overdue, yellow at 7 or less, green paid. */
+function toneColors(tone: Tone, p: Palette): { fg: ColorProp; bg: ColorProp } {
+  switch (tone) {
+    case 'danger':
+      return { fg: p.overdue, bg: p.overdueBg };
+    case 'warning':
+      return { fg: p.dueSoon, bg: p.dueSoonBg };
+    case 'success':
+      return { fg: p.paid, bg: p.paidBg };
+    default:
+      return { fg: p.neutral, bg: p.neutralBg };
+  }
+}
+
 function CardRow({ status, p }: { status: CardStatus; p: Palette }) {
   const { card, current, state, daysLeft, overdueCount } = status;
-  const tone =
-    state === 'overdue'
-      ? { fg: p.overdue, bg: p.overdueBg }
-      : state === 'dueSoon'
-        ? { fg: p.dueSoon, bg: p.dueSoonBg }
-        : state === 'paid'
-          ? { fg: p.paid, bg: p.paidBg }
-          : { fg: p.neutral, bg: p.neutralBg };
+  const toneName = cardTone(status);
+  const tone = toneColors(toneName, p);
   const badgeText = state === 'paid' ? 'Paid ✓' : dueLabel(daysLeft);
   const title = overdueCount > 1 ? `${card.name} · ${overdueCount} unpaid` : card.name;
   const subtitle = `Statement ${shortDate(current.statement)} · Due ${shortDate(current.due)}`;
@@ -182,7 +191,7 @@ function CardRow({ status, p }: { status: CardStatus; p: Palette }) {
       title={title}
       subtitle={subtitle}
       badge={<Badge text={badgeText} fg={tone.fg} bg={tone.bg} />}
-      highlight={state === 'overdue'}
+      highlight={toneName === 'danger'}
       label={`${card.name}, ${badgeText}, due ${shortDate(current.due)}`}
       p={p}
     />
@@ -192,17 +201,17 @@ function CardRow({ status, p }: { status: CardStatus; p: Palette }) {
 function DebtRow({ debt, today, p }: { debt: Debt; today: IsoDate; p: Palette }) {
   const due = debt.dueOn ?? today;
   const daysLeft = toDayNumber(due) - toDayNumber(today);
-  const overdue = daysLeft < 0;
+  const toneName = toneForDaysLeft(daysLeft);
   const who = debt.direction === 'owes_me' ? `${debt.personName} owes you` : `You owe ${debt.personName}`;
   const amount = formatPeso(debt.remainingCents);
-  const tone = overdue ? { fg: p.overdue, bg: p.overdueBg } : { fg: p.dueSoon, bg: p.dueSoonBg };
+  const tone = toneColors(toneName, p);
   return (
     <Row
       uri={`cardreminder://debts/debt/${debt.id}`}
       title={`${who} ${amount}`}
       subtitle={`Due ${shortDate(due)}`}
       badge={<Badge text={dueLabel(daysLeft)} fg={tone.fg} bg={tone.bg} />}
-      highlight={overdue}
+      highlight={toneName === 'danger'}
       label={`${who} ${amount}, ${dueLabel(daysLeft)}`}
       p={p}
     />

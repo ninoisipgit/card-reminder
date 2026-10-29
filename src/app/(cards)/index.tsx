@@ -17,7 +17,7 @@ import { todayIso, type CardStatus } from '@/lib/cycles';
 
 function CardRow({ status }: { status: CardStatus }) {
   const theme = useTheme();
-  const overdue = status.state === 'overdue';
+  const tone = cardTone(status);
   return (
     <Pressable
       accessibilityRole="button"
@@ -26,7 +26,7 @@ function CardRow({ status }: { status: CardStatus }) {
       style={({ pressed }) => [
         styles.row,
         {
-          backgroundColor: overdue ? theme.dangerBackground : theme.backgroundElement,
+          backgroundColor: tone === 'danger' ? theme.dangerBackground : theme.backgroundElement,
           opacity: pressed ? 0.7 : 1,
         },
       ]}>
@@ -39,7 +39,7 @@ function CardRow({ status }: { status: CardStatus }) {
           {cardDatesLine(status)}
         </ThemedText>
       </View>
-      <StatusBadge text={cardBadgeText(status)} tone={cardTone(status.state)} />
+      <StatusBadge text={cardBadgeText(status)} tone={tone} />
     </Pressable>
   );
 }
