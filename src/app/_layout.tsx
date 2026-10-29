@@ -6,7 +6,10 @@ import { AppState, useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import AppTabs from '@/components/app-tabs';
+import { getDb } from '@/data/open';
+import { getSettings } from '@/data/settings';
 import { syncAfterChange, syncIfStale } from '@/lib/sync';
+import { applyTheme } from '@/lib/theme-setting';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -20,6 +23,10 @@ export default function TabLayout() {
   // Widget + reminders are re-synced on launch, and when the app returns to the
   // foreground (at most hourly), so overdue reminders keep being re-planned.
   useEffect(() => {
+    getDb()
+      .then(getSettings)
+      .then((s) => applyTheme(s.theme))
+      .catch(() => {});
     syncAfterChange();
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') syncIfStale();

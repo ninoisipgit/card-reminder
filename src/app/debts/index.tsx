@@ -5,7 +5,7 @@ import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
-import { HeaderButton } from '@/components/ui/header-button';
+import { HeaderButtons } from '@/components/ui/header-buttons';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Spacing } from '@/constants/theme';
 import { listOpenDebts, listPersonBalances, type Debt, type PersonBalance, type Totals } from '@/data/debts';
@@ -98,7 +98,18 @@ export default function DebtsScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerRight: () => <HeaderButton label="Add" onPress={addDebt} /> }} />
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <HeaderButtons
+              buttons={[
+                { label: 'Settings', onPress: () => router.push('/debts/settings') },
+                { label: 'Add', onPress: addDebt },
+              ]}
+            />
+          ),
+        }}
+      />
       <FlatList
         style={{ backgroundColor: theme.background }}
         contentContainerStyle={styles.content}

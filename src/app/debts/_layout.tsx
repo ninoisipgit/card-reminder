@@ -9,6 +9,7 @@ export default function DebtsLayout() {
       <Stack.Screen name="debt/edit" options={{ title: 'Debt', presentation: 'modal' }} />
       <Stack.Screen name="debt/repay" options={{ title: 'Add repayment', presentation: 'modal' }} />
       <Stack.Screen name="paid" options={{ title: 'Paid history' }} />
+      <Stack.Screen name="settings" options={{ title: 'Settings' }} />
     </Stack>
   );
 }

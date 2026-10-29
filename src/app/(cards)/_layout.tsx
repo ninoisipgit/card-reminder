@@ -6,6 +6,7 @@ export default function CardsLayout() {
       <Stack.Screen name="index" options={{ title: 'Cards' }} />
       <Stack.Screen name="card/[id]" options={{ title: '' }} />
       <Stack.Screen name="card/edit" options={{ title: 'Card', presentation: 'modal' }} />
+      <Stack.Screen name="settings" options={{ title: 'Settings' }} />
       <Stack.Screen name="dev" options={{ title: 'Test tools' }} />
     </Stack>
   );

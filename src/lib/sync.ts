@@ -1,9 +1,10 @@
 /**
  * Keeps the home-screen widget and scheduled reminders in step with the database.
- * Call syncAfterChange() after any change to cards or debts.
+ * Call syncAfterChange() after any change to cards, debts or reminder settings.
  */
 import { listCardStatuses } from '@/data/cards';
 import { getDb } from '@/data/open';
+import { getSettings, reminderOptionsFrom } from '@/data/settings';
 import { todayIso } from '@/lib/cycles';
 import { syncCardReminders } from '@/lib/notifications';
 import { refreshCardWidget } from '@/widgets/render-card-widget';
@@ -17,7 +18,8 @@ export async function syncAfterChange(): Promise<void> {
     refreshCardWidget(),
     (async () => {
       const db = await getDb();
-      await syncCardReminders(await listCardStatuses(db, todayIso()));
+      const [statuses, settings] = await Promise.all([listCardStatuses(db, todayIso()), getSettings(db)]);
+      await syncCardReminders(statuses, reminderOptionsFrom(settings));
     })(),
   ]);
   for (const r of results) {

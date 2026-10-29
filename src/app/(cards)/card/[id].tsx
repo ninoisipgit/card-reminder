@@ -17,10 +17,10 @@ import {
 } from '@/data/cards';
 import { DataError } from '@/data/db';
 import { getDb } from '@/data/open';
+import { DEFAULT_SETTINGS, formatTime, getSettings } from '@/data/settings';
 import { useTheme } from '@/hooks/use-theme';
 import { cardBadgeText, cardTone, errorMessage } from '@/lib/card-display';
 import { shortDate, toDayNumber, todayIso, type CardStatus } from '@/lib/cycles';
-import { REMINDER_HOUR } from '@/lib/reminder-plan';
 import { syncAfterChange } from '@/lib/sync';
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -63,13 +63,19 @@ export default function CardDetailScreen() {
   const [busy, setBusy] = useState(false);
   /** The payment just made on this screen, for the inline Undo. */
   const [justPaid, setJustPaid] = useState<CardPayment | null>(null);
+  const [reminderTime, setReminderTime] = useState(formatTime(DEFAULT_SETTINGS.reminderHour, DEFAULT_SETTINGS.reminderMinute));
 
   const load = useCallback(async () => {
     try {
       const db = await getDb();
-      const [s, h] = await Promise.all([getCardStatusById(db, cardId, todayIso()), listCardHistory(db, cardId)]);
+      const [s, h, settings] = await Promise.all([
+        getCardStatusById(db, cardId, todayIso()),
+        listCardHistory(db, cardId),
+        getSettings(db),
+      ]);
       setStatus(s);
       setHistory(h);
+      setReminderTime(formatTime(settings.reminderHour, settings.reminderMinute));
       setError(null);
     } catch (e) {
       if (e instanceof DataError && e.code === 'NOT_FOUND') setNotFound(true);
@@ -137,8 +143,6 @@ export default function CardDetailScreen() {
 
   const { card, current, state, overdueCount } = status;
   const statementOut = toDayNumber(todayIso()) >= toDayNumber(current.statement);
-  const hour12 = REMINDER_HOUR % 12 === 0 ? 12 : REMINDER_HOUR % 12;
-  const reminderTime = `${hour12}:00 ${REMINDER_HOUR < 12 ? 'AM' : 'PM'}`;
 
   return (
     <>

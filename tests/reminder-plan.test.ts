@@ -49,6 +49,21 @@ describe('reminder plan', () => {
     assert.equal(plan.length, (OVERDUE_DAYS * 24) / OVERDUE_EVERY_HOURS);
   });
 
+  it('uses the chosen time, and quiet nights skip 10 PM - 7 AM repeats', () => {
+    const now = local(2026, 10, 22, 10);
+    const status = getCardStatus(card, '2026-10-22'); // overdue since Oct 21
+    const loud = planCardReminders([status], now, { hour: 9, minute: 0, quietNights: false });
+    const quiet = planCardReminders([status], now, { hour: 9, minute: 0, quietNights: true });
+    assert.ok(loud.some((p) => p.at.getHours() === 2)); // 2 AM is in the loud plan
+    assert.ok(quiet.length < loud.length);
+    assert.ok(quiet.every((p) => p.at.getHours() >= 7 && p.at.getHours() < 22));
+
+    const upcoming = getCardStatus(card, '2026-10-15');
+    const at730 = planCardReminders([upcoming], local(2026, 10, 15, 12), { hour: 7, minute: 30, quietNights: false });
+    const soon = at730.find((p) => p.kind === 'dueSoon')!;
+    assert.equal(soon.at.getTime(), local(2026, 10, 17, 7).getTime() + 30 * 60_000);
+  });
+
   it('marked paid: plans the next cycle instead', () => {
     const paid = { ...card, lastPaidStatement: '2026-09-30' };
     const plan = planCardReminders([getCardStatus(paid, '2026-10-22')], local(2026, 10, 22, 10));

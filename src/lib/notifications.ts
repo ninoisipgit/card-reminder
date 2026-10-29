@@ -6,7 +6,10 @@
 import * as Notifications from 'expo-notifications';
 
 import { shortDate, type CardStatus, type IsoDate } from './cycles';
-import { planCardReminders, REMINDER_HOUR } from './reminder-plan';
+import { DEFAULT_REMINDER_OPTIONS, planCardReminders, type ReminderOptions } from './reminder-plan';
+
+/** Hour used by the prototype test buttons. */
+const TEST_HOUR = DEFAULT_REMINDER_OPTIONS.hour;
 
 export const REMINDER_CHANNEL = 'payment-reminders';
 /** Overdue cards repeat every 4 hours (PRD). The prototype test schedules the next 24 hours. */
@@ -83,18 +86,18 @@ export function scheduleTestIn(minutes: number, delivery: Delivery): Promise<str
 export function scheduleTomorrowMorning(delivery: Delivery): Promise<string> {
   const at = new Date();
   at.setDate(at.getDate() + 1);
-  at.setHours(REMINDER_HOUR, 0, 0, 0);
+  at.setHours(TEST_HOUR, 0, 0, 0);
   return scheduleAt(at, `Overnight test (${delivery})`, `Expected at ${timeLabel(at)}. Leave the phone on battery overnight.`, delivery);
 }
 
 function atReminderHour(iso: IsoDate): Date {
   const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y, m - 1, d, REMINDER_HOUR, 0, 0, 0);
+  return new Date(y, m - 1, d, TEST_HOUR, 0, 0, 0);
 }
 
 /**
  * Real rules, sample data:
- * - not yet due: one reminder 3 days before the due date at REMINDER_HOUR
+ * - not yet due: one reminder 3 days before the due date at TEST_HOUR
  * - overdue: every 4 hours for the next 24 hours
  * Returns how many were scheduled.
  */
@@ -141,7 +144,11 @@ export function cancelAllReminders(): Promise<void> {
  * Uses best-effort delivery (may be a few minutes late; no alarm icon). Revisit
  * after the overnight test on a real phone.
  */
-export async function syncCardReminders(statuses: CardStatus[], now: Date = new Date()): Promise<number> {
+export async function syncCardReminders(
+  statuses: CardStatus[],
+  options: ReminderOptions = DEFAULT_REMINDER_OPTIONS,
+  now: Date = new Date(),
+): Promise<number> {
   await Notifications.setNotificationChannelAsync(REMINDER_CHANNEL, {
     name: 'Payment reminders',
     importance: Notifications.AndroidImportance.HIGH,
@@ -154,14 +161,14 @@ export async function syncCardReminders(statuses: CardStatus[], now: Date = new 
     }
   }
 
-  const plan = planCardReminders(statuses, now);
+  const plan = planCardReminders(statuses, now, options);
   for (const p of plan) {
     await Notifications.scheduleNotificationAsync({
       identifier: p.id,
       content: {
         title: p.title,
         body: p.body,
-        data: { kind: CARD_REMINDER_KIND, url: `/card/${p.cardId}`, scheduledFor: timeLabel(p.at) },
+        data: { kind: CARD_REMINDER_KIND, url: `/card/${p.cardId}`, scheduledFor: timeLabel(p.at), atMs: p.at.getTime() },
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -171,4 +178,23 @@ export async function syncCardReminders(statuses: CardStatus[], now: Date = new 
     });
   }
   return plan.length;
+}
+
+/** How many card reminders are waiting to fire, and when the next one is. */
+export async function getCardReminderSummary(): Promise<{ count: number; next: string | null }> {
+  const requests = await Notifications.getAllScheduledNotificationsAsync();
+  const ours = requests.filter((r) => r.content.data?.kind === CARD_REMINDER_KIND);
+  const next = ours
+    .map((r) => Number(r.content.data?.atMs))
+    .filter((ms) => Number.isFinite(ms))
+    .sort((a, b) => a - b)[0];
+  return { count: ours.length, next: next === undefined ? null : timeLabel(new Date(next)) };
+}
+
+export type PermissionState = 'granted' | 'canAsk' | 'blocked';
+
+export async function getNotificationPermission(): Promise<PermissionState> {
+  const p = await Notifications.getPermissionsAsync();
+  if (p.granted) return 'granted';
+  return p.canAskAgain ? 'canAsk' : 'blocked';
 }

@@ -5,7 +5,7 @@ import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
-import { HeaderButton } from '@/components/ui/header-button';
+import { HeaderButtons } from '@/components/ui/header-buttons';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Spacing } from '@/constants/theme';
 import { listCardStatuses } from '@/data/cards';
@@ -73,7 +73,18 @@ export default function CardsScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerRight: () => <HeaderButton label="Add" onPress={addCard} /> }} />
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <HeaderButtons
+              buttons={[
+                { label: 'Settings', onPress: () => router.push('/settings') },
+                { label: 'Add', onPress: addCard },
+              ]}
+            />
+          ),
+        }}
+      />
       <FlatList
         style={{ backgroundColor: theme.background }}
         contentContainerStyle={styles.content}
@@ -104,13 +115,6 @@ export default function CardsScreen() {
             </View>
           ) : undefined
         }
-        ListFooterComponent={
-          <Pressable onPress={() => router.push('/dev')} style={styles.footer} accessibilityRole="link">
-            <ThemedText type="small" themeColor="textSecondary">
-              Test tools
-            </ThemedText>
-          </Pressable>
-        }
       />
     </>
   );
@@ -128,5 +132,4 @@ const styles = StyleSheet.create({
   rowText: { flex: 1, gap: Spacing.half },
   empty: { alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.five },
   center: { textAlign: 'center' },
-  footer: { alignItems: 'center', paddingVertical: Spacing.four },
 });
