@@ -9,9 +9,12 @@ import { BottomBar } from '@/components/ui/bottom-bar';
 import { HeaderButton } from '@/components/ui/header-button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Spacing } from '@/constants/theme';
+import { backupNudge, hasAnyData } from '@/data/backup';
 import { listCardStatuses } from '@/data/cards';
 import { getDb } from '@/data/open';
+import { getSettings } from '@/data/settings';
 import { useTheme } from '@/hooks/use-theme';
+import { saveBackupToFolder } from '@/lib/backup-file';
 import { cardBadgeText, cardDatesLine, cardsSummary, cardTone, errorMessage } from '@/lib/card-display';
 import { todayIso, type CardStatus } from '@/lib/cycles';
 
@@ -44,10 +47,48 @@ function CardRow({ status }: { status: CardStatus }) {
   );
 }
 
+/** "Later" hides the nudge until the app is next opened. */
+let nudgeDismissedThisSession = false;
+
+function BackupNudge({ daysSince, onSaved, onLater }: { daysSince: number | null; onSaved: () => void; onLater: () => void }) {
+  const theme = useTheme();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const save = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      if (await saveBackupToFolder(await getDb())) onSaved();
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <View style={[styles.nudge, { backgroundColor: theme.warningBackground }]}>
+      <ThemedText type="smallBold" style={{ color: theme.warning }}>
+        {daysSince === null ? 'No backup yet' : `Last backup was ${daysSince} days ago`}
+      </ThemedText>
+      <ThemedText type="small" style={{ color: theme.warning }}>
+        Your cards and debts are only on this phone. Save a backup to Google Drive or Downloads.
+      </ThemedText>
+      {error ? <ThemedText type="small" style={{ color: theme.danger }}>{error}</ThemedText> : null}
+      <View style={styles.nudgeButtons}>
+        <View style={styles.flex}>
+          <Button label="Save backup" onPress={save} busy={busy} />
+        </View>
+        <Button label="Later" variant="plain" onPress={onLater} />
+      </View>
+    </View>
+  );
+}
+
 export default function CardsScreen() {
   const theme = useTheme();
   const [cards, setCards] = useState<CardStatus[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [nudge, setNudge] = useState<ReturnType<typeof backupNudge>>(null);
 
   // Reload whenever the tab comes back into view (after adding, paying, editing).
   useFocusEffect(
@@ -55,10 +96,16 @@ export default function CardsScreen() {
       let active = true;
       (async () => {
         try {
-          const list = await listCardStatuses(await getDb(), todayIso());
+          const db = await getDb();
+          const [list, settings, hasData] = await Promise.all([
+            listCardStatuses(db, todayIso()),
+            getSettings(db),
+            hasAnyData(db),
+          ]);
           if (active) {
             setCards(list);
             setError(null);
+            setNudge(nudgeDismissedThisSession ? null : backupNudge(settings.lastBackupAt, hasData));
           }
         } catch (e) {
           if (active) setError(errorMessage(e));
@@ -84,15 +131,27 @@ export default function CardsScreen() {
         keyExtractor={(s) => s.card.id}
         renderItem={({ item }) => <CardRow status={item} />}
         ListHeaderComponent={
-          error ? (
-            <ThemedText type="small" style={{ color: theme.danger }}>
-              Couldn’t load cards: {error}
-            </ThemedText>
-          ) : cards && cards.length > 0 ? (
-            <ThemedText type="small" themeColor="textSecondary">
-              {cardsSummary(cards)}
-            </ThemedText>
-          ) : undefined
+          <View style={styles.header}>
+            {nudge ? (
+              <BackupNudge
+                daysSince={nudge.daysSince}
+                onSaved={() => setNudge(null)}
+                onLater={() => {
+                  nudgeDismissedThisSession = true;
+                  setNudge(null);
+                }}
+              />
+            ) : null}
+            {error ? (
+              <ThemedText type="small" style={{ color: theme.danger }}>
+                Couldn’t load cards: {error}
+              </ThemedText>
+            ) : cards && cards.length > 0 ? (
+              <ThemedText type="small" themeColor="textSecondary">
+                {cardsSummary(cards)}
+              </ThemedText>
+            ) : null}
+          </View>
         }
         ListEmptyComponent={
           cards ? (
@@ -116,6 +175,10 @@ export default function CardsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  flex: { flex: 1 },
+  header: { gap: Spacing.two },
+  nudge: { padding: Spacing.three, borderRadius: Spacing.three, gap: Spacing.one, marginBottom: Spacing.one },
+  nudgeButtons: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.two },
   content: { padding: Spacing.three, gap: Spacing.two },
   row: {
     flexDirection: 'row',

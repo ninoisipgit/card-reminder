@@ -19,10 +19,10 @@ export const OVERDUE_REPEAT_HOURS = 4;
 const CARD_REMINDER_KIND = 'card-reminder';
 
 /**
- * 'bestEffort' = Android may delay it a few minutes to save battery.
- * 'alarmClock' = exact time, needs the "Alarms & reminders" permission; Android shows an alarm icon.
+ * 'bestEffort' = Android may delay it a few minutes to save battery (what the app uses).
+ * 'alarmClock' would be exact but needs the exact-alarm permission, which the app no longer requests.
  */
-export type Delivery = 'bestEffort' | 'alarmClock';
+export type Delivery = 'bestEffort';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -43,15 +43,6 @@ export async function ensureNotificationPermission(): Promise<boolean> {
   if (current.granted) return true;
   const asked = await Notifications.requestPermissionsAsync();
   return asked.granted;
-}
-
-export async function hasExactAlarmPermission(): Promise<boolean> {
-  return (await Notifications.getExactAlarmPermissionsAsync()).granted;
-}
-
-/** Opens Android settings; resolves when the user comes back. */
-export async function requestExactAlarmPermission(): Promise<boolean> {
-  return (await Notifications.requestExactAlarmPermissionsAsync()).granted;
 }
 
 function timeLabel(date: Date): string {
@@ -168,7 +159,7 @@ export async function syncCardReminders(
       content: {
         title: p.title,
         body: p.body,
-        data: { kind: CARD_REMINDER_KIND, url: `/card/${p.cardId}?pay=1`, scheduledFor: timeLabel(p.at), atMs: p.at.getTime() },
+        data: { kind: CARD_REMINDER_KIND, url: `/card/${p.cardId}`, scheduledFor: timeLabel(p.at), atMs: p.at.getTime() },
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,

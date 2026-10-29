@@ -28,6 +28,32 @@ export type Backup = {
   tables: Record<TableName, Row[]>;
 };
 
+/** Nudge to back up when there is data and no backup in this many days. */
+export const BACKUP_NUDGE_DAYS = 30;
+
+/** True if the database holds any cards or debts worth backing up. */
+export async function hasAnyData(db: Db): Promise<boolean> {
+  const row = await db.getFirstAsync<{ n: number }>(
+    'SELECT (SELECT COUNT(*) FROM cards) + (SELECT COUNT(*) FROM debts) AS n',
+  );
+  return (row?.n ?? 0) > 0;
+}
+
+/**
+ * Whether to show the backup nudge, and how to word it.
+ * null = no nudge (no data, or a recent backup).
+ */
+export function backupNudge(
+  lastBackupAt: string | null,
+  hasData: boolean,
+  now: Date = new Date(),
+): { daysSince: number | null } | null {
+  if (!hasData) return null;
+  if (!lastBackupAt) return { daysSince: null };
+  const days = Math.floor((now.getTime() - Date.parse(lastBackupAt)) / 86_400_000);
+  return days >= BACKUP_NUDGE_DAYS ? { daysSince: days } : null;
+}
+
 export type BackupSummary = { cards: number; cardPayments: number; people: number; debts: number; repayments: number };
 
 export async function exportBackup(db: Db): Promise<Backup> {

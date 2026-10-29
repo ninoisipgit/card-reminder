@@ -9,7 +9,7 @@ import {
 
 import type { Debt } from '@/data/debts';
 import { toDayNumber, dueLabel, shortDate, type CardStatus, type IsoDate } from '@/lib/cycles';
-import { cardTone, toneForDaysLeft, type Tone } from '@/lib/card-display';
+import { attentionSummary, cardTone, toneForDaysLeft, type Tone } from '@/lib/card-display';
 import { formatPeso } from '@/lib/money';
 
 export type WidgetTheme = 'light' | 'dark';
@@ -186,8 +186,8 @@ function CardRow({ status, p }: { status: CardStatus; p: Palette }) {
   const subtitle = `Statement ${shortDate(current.statement)} · Due ${shortDate(current.due)}`;
   return (
     <Row
-      // Opens the card and asks "Mark as paid?" (unless it's already paid).
-      uri={state === 'paid' ? `cardreminder://card/${card.id}` : `cardreminder://card/${card.id}?pay=1`}
+      // Opens the card, where "Mark as paid" is the button at the bottom.
+      uri={`cardreminder://card/${card.id}`}
       title={title}
       subtitle={subtitle}
       badge={<Badge text={badgeText} fg={tone.fg} bg={tone.bg} />}
@@ -220,12 +220,13 @@ function DebtRow({ debt, today, p }: { debt: Debt; today: IsoDate; p: Palette })
 
 export function CardWidget({ cards, debts, today, theme }: CardWidgetProps) {
   const p = PALETTES[theme];
-  const overdue = cards.filter((c) => c.state === 'overdue').length;
-  const dueSoon = cards.filter((c) => c.state === 'dueSoon').length;
-  const summary =
-    overdue + dueSoon === 0
-      ? 'All clear'
-      : [overdue ? `${overdue} overdue` : '', dueSoon ? `${dueSoon} due soon` : ''].filter(Boolean).join(' · ');
+  // Same 7-day rule as the colors, across cards and debts.
+  const attention = attentionSummary(
+    cards,
+    debts.map((d) => toDayNumber(d.dueOn ?? today) - toDayNumber(today)),
+  );
+  const summary = attention.text;
+  const summaryColor = attention.overdue ? p.overdue : attention.dueThisWeek ? p.dueSoon : p.muted;
 
   return (
     <FlexWidget
@@ -253,7 +254,7 @@ export function CardWidget({ cards, debts, today, theme }: CardWidgetProps) {
         <TextWidget text="Payments" style={{ fontSize: 18, fontWeight: '700', color: p.text }} />
         <TextWidget
           text={summary}
-          style={{ fontSize: 14, fontWeight: '600', color: overdue ? p.overdue : p.muted }}
+          style={{ fontSize: 14, fontWeight: '600', color: summaryColor }}
         />
       </FlexWidget>
 

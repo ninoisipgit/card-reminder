@@ -2,7 +2,7 @@
   "expo": {
     "name": "Card Reminder",
     "slug": "card-reminder",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "cardreminder",
@@ -18,10 +18,11 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "android.permission.SCHEDULE_EXACT_ALARM"
-      ],
-      "package": "com.cisip.cardreminder"
+      "package": "com.cisip.cardreminder",
+      "blockedPermissions": [
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.USE_EXACT_ALARM"
+      ]
     },
     "web": {
       "output": "server",

@@ -46,3 +46,21 @@ describe('settings', () => {
     assert.equal(formatTime(18, 30), '6:30 PM');
   });
 });
+
+describe('backup nudge', () => {
+  it('nudges when there is data and no backup in 30+ days', async () => {
+    const { backupNudge, hasAnyData } = await import('../src/data/backup');
+    const now = new Date('2026-10-29T04:00:00.000Z');
+    assert.equal(backupNudge(null, false, now), null); // nothing to back up
+    assert.deepEqual(backupNudge(null, true, now), { daysSince: null }); // never backed up
+    assert.equal(backupNudge('2026-10-10T04:00:00.000Z', true, now), null); // 19 days
+    assert.deepEqual(backupNudge('2026-09-28T04:00:00.000Z', true, now), { daysSince: 31 });
+
+    const db = await freshDb();
+    assert.equal(await hasAnyData(db), false);
+    await db.runAsync(
+      "INSERT INTO cards (name, statement_day, added_on, created_at, updated_at) VALUES ('BPI', 5, '2026-10-01', 'x', 'x')",
+    );
+    assert.equal(await hasAnyData(db), true);
+  });
+});

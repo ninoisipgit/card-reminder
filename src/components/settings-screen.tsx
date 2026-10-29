@@ -311,7 +311,7 @@ export function SettingsScreen() {
         <ThemedText type="small" themeColor="textSecondary">
           Card Reminder {Constants.expoConfig?.version ?? ''}
         </ThemedText>
-        <Button label="Test tools" variant="plain" onPress={() => router.push('/dev')} />
+        {__DEV__ ? <Button label="Test tools" variant="plain" onPress={() => router.push('/dev')} /> : null}
       </View>
 
       {pickingTime && s ? (

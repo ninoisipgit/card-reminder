@@ -1,7 +1,9 @@
 /**
- * TEST TOOLS (opened from the bottom of the Cards tab). Sample data, a widget
- * preview, and reminder-reliability checks for this phone. Not part of the real app.
+ * TEST TOOLS (Settings > Test tools, development builds only). Sample data, a
+ * widget preview, and reminder checks. Hidden in release builds because
+ * "Load sample data" replaces everything.
  */
+import { Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 import { WidgetPreview } from 'react-native-android-widget';
@@ -17,9 +19,7 @@ import { dueLabel, shortDate, todayIso } from '@/lib/cycles';
 import {
   cancelAllReminders,
   ensureNotificationPermission,
-  hasExactAlarmPermission,
   listScheduled,
-  requestExactAlarmPermission,
   scheduleCardReminders,
   scheduleTestIn,
   scheduleTomorrowMorning,
@@ -67,7 +67,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export default function TestToolsScreen() {
+/** Release builds (the phone) never show this screen, even from an old link. */
+export default function TestToolsRoute() {
+  if (!__DEV__) return <Redirect href="/" />;
+  return <TestToolsScreen />;
+}
+
+function TestToolsScreen() {
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const [data, setData] = useState<WidgetData | null>(null);
   const [log, setLog] = useState<string[]>([]);
@@ -113,7 +119,6 @@ export default function TestToolsScreen() {
   /** Why a test can't be scheduled yet, or undefined when it can. */
   const blockedReason = async (delivery: Delivery): Promise<string | undefined> => {
     if (!(await ensureNotificationPermission())) return 'notifications not allowed';
-    if (delivery === 'alarmClock' && !(await hasExactAlarmPermission())) return 'allow exact alarms first';
     return undefined;
   };
 
@@ -171,32 +176,20 @@ export default function TestToolsScreen() {
               label="Allow notifications"
               onPress={run('Notifications', async () => ((await ensureNotificationPermission()) ? 'allowed' : 'NOT allowed'))}
             />
-            <Button
-              label="Allow exact alarms"
-              onPress={run('Exact alarms', async () => ((await requestExactAlarmPermission()) ? 'allowed' : 'NOT allowed'))}
-            />
           </Section>
 
           <Section title="4. Reminder tests">
             <Button
-              label="Test in 2 min (best effort)"
+              label="Test in 2 min"
               onPress={run('2-min best effort', testIn2Min('bestEffort'))}
             />
             <Button
-              label="Test in 2 min (exact)"
-              onPress={run('2-min exact', testIn2Min('alarmClock'))}
-            />
-            <Button
-              label="Tomorrow 9:00 AM, both kinds"
+              label="Tomorrow 9:00 AM"
               onPress={run('Overnight', async () => {
                 const blocked = await blockedReason('bestEffort');
                 if (blocked) return blocked;
                 await scheduleTomorrowMorning('bestEffort');
-                if (await hasExactAlarmPermission()) {
-                  await scheduleTomorrowMorning('alarmClock');
-                  return 'scheduled best effort + exact';
-                }
-                return 'scheduled best effort only (exact alarms not allowed)';
+                return 'scheduled';
               })}
             />
             <Button
@@ -204,7 +197,7 @@ export default function TestToolsScreen() {
               onPress={run('Card reminders', async () => {
                 const blocked = await blockedReason('bestEffort');
                 if (blocked) return blocked;
-                const n = await scheduleCardReminders(data?.cards ?? [], (await hasExactAlarmPermission()) ? 'alarmClock' : 'bestEffort');
+                const n = await scheduleCardReminders(data?.cards ?? [], 'bestEffort');
                 return `${n} scheduled`;
               })}
             />

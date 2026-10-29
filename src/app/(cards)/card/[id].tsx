@@ -1,9 +1,10 @@
 /** Card detail: this month's cycle, "Mark paid" with undo, and the full payment history. */
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { BottomBar } from '@/components/ui/bottom-bar';
 import { Button } from '@/components/ui/button';
 import { HeaderButton } from '@/components/ui/header-button';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -54,8 +55,7 @@ function HistoryRow({ payment, onUndo }: { payment: CardPayment; onUndo?: () => 
 
 export default function CardDetailScreen() {
   const theme = useTheme();
-  // `pay=1` comes from tapping the card on the home-screen widget: ask to mark it paid right away.
-  const { id, pay } = useLocalSearchParams<{ id: string; pay?: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const cardId = Number(id);
   const [status, setStatus] = useState<CardStatus | null>(null);
   const [history, setHistory] = useState<CardPayment[]>([]);
@@ -118,23 +118,6 @@ export default function CardDetailScreen() {
     }
   };
 
-  const askedToPay = useRef(false);
-  useEffect(() => {
-    if (pay !== '1') {
-      askedToPay.current = false; // ready for the next widget tap
-      return;
-    }
-    if (!status || askedToPay.current) return;
-    askedToPay.current = true;
-    router.setParams({ pay: undefined });
-    const { card: c, current: cycle, state: st } = status;
-    if (st === 'paid' || toDayNumber(todayIso()) < toDayNumber(cycle.statement)) return; // nothing to pay yet
-    Alert.alert(`Mark ${c.name} as paid?`, `Statement ${shortDate(cycle.statement)} · due ${shortDate(cycle.due)}.`, [
-      { text: 'Not yet', style: 'cancel' },
-      { text: 'Mark as paid', onPress: markPaid },
-    ]);
-  }, [pay, status]);
-
   const confirmUndo = () =>
     Alert.alert('Undo this payment?', 'The cycle will show as unpaid again and its reminders come back.', [
       { text: 'Cancel', style: 'cancel' },
@@ -163,7 +146,7 @@ export default function CardDetailScreen() {
   const statementOut = toDayNumber(todayIso()) >= toDayNumber(current.statement);
 
   return (
-    <>
+    <View style={[styles.screen, { backgroundColor: theme.background }]}>
       <Stack.Screen
         options={{
           title: card.name,
@@ -175,7 +158,7 @@ export default function CardDetailScreen() {
           ),
         }}
       />
-      <ScrollView style={{ backgroundColor: theme.background }} contentContainerStyle={styles.content}>
+      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
         <View
           style={[styles.panel, { backgroundColor: cardTone(status) === 'danger' ? theme.dangerBackground : theme.backgroundElement }]}>
           <StatusBadge text={cardBadgeText(status)} tone={cardTone(status)} />
@@ -203,13 +186,11 @@ export default function CardDetailScreen() {
           </View>
         ) : null}
 
-        {statementOut ? (
-          <Button label="Mark as paid" onPress={markPaid} busy={busy} />
-        ) : (
+        {!statementOut ? (
           <ThemedText type="small" themeColor="textSecondary" style={styles.centerText}>
             Nothing to pay yet. The next statement comes out {shortDate(current.statement)}.
           </ThemedText>
-        )}
+        ) : null}
         <ThemedText type="small" themeColor="textSecondary" style={styles.centerText}>
           “Mark as paid” is your own record. It doesn’t check with the bank.
         </ThemedText>
@@ -229,11 +210,17 @@ export default function CardDetailScreen() {
           ))
         )}
       </ScrollView>
-    </>
+      {statementOut ? (
+        <BottomBar>
+          <Button label="Mark as paid" onPress={markPaid} busy={busy} />
+        </BottomBar>
+      ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1 },
   content: { padding: Spacing.three, gap: Spacing.three },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.three, padding: Spacing.four },
   centerText: { textAlign: 'center' },

@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { BottomBar } from '@/components/ui/bottom-bar';
 import { Button } from '@/components/ui/button';
 import { Chip, ChipRow, Segmented } from '@/components/ui/choice';
 import { DateField } from '@/components/ui/date-field';
@@ -111,10 +112,10 @@ export default function EditDebtScreen() {
     ]);
 
   return (
-    <>
+    <View style={[styles.screen, { backgroundColor: theme.background }]}>
       <Stack.Screen options={{ title: editing ? 'Edit debt' : 'Add debt' }} />
       <ScrollView
-        style={{ backgroundColor: theme.background }}
+        style={styles.screen}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled">
         <Segmented<Direction>
@@ -186,14 +187,17 @@ export default function EditDebtScreen() {
 
         {error ? <ThemedText style={{ color: theme.danger }}>{error}</ThemedText> : null}
 
-        <Button label={editing ? 'Save changes' : 'Add debt'} onPress={save} busy={saving} />
         {editing ? <Button label="Delete debt" variant="danger" onPress={confirmDelete} /> : null}
       </ScrollView>
-    </>
+      <BottomBar>
+        <Button label={editing ? 'Save changes' : 'Add debt'} onPress={save} busy={saving} />
+      </BottomBar>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1 },
   content: { padding: Spacing.three, gap: Spacing.three },
   group: { gap: Spacing.two },
 });

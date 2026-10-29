@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { BottomBar } from '@/components/ui/bottom-bar';
 import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
 import { Spacing } from '@/constants/theme';
@@ -112,10 +113,10 @@ export default function EditCardScreen() {
     ]);
 
   return (
-    <>
+    <View style={[styles.screen, { backgroundColor: theme.background }]}>
       <Stack.Screen options={{ title: editing ? 'Edit card' : 'Add card' }} />
       <ScrollView
-        style={{ backgroundColor: theme.background }}
+        style={styles.screen}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled">
         <TextField
@@ -168,14 +169,17 @@ export default function EditCardScreen() {
 
         {error ? <ThemedText style={{ color: theme.danger }}>{error}</ThemedText> : null}
 
-        <Button label={editing ? 'Save changes' : 'Add card'} onPress={save} busy={saving} />
         {editing ? <Button label="Delete card" variant="danger" onPress={confirmDelete} /> : null}
       </ScrollView>
-    </>
+      <BottomBar>
+        <Button label={editing ? 'Save changes' : 'Add card'} onPress={save} busy={saving} />
+      </BottomBar>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1 },
   content: { padding: Spacing.three, gap: Spacing.three },
   preview: { padding: Spacing.three, borderRadius: Spacing.three, gap: Spacing.one },
 });
