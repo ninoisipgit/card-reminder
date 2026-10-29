@@ -4,7 +4,7 @@
  */
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 import { WidgetPreview } from 'react-native-android-widget';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -135,7 +135,13 @@ export default function PrototypeScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <ScrollView contentContainerStyle={styles.content}>
+        {/* A FlatList, not a ScrollView: the widget preview contains a list, and
+            React Native only allows lists inside other lists. */}
+        <FlatList
+          data={[]}
+          contentContainerStyle={styles.content}
+          ListHeaderComponent={
+            <View style={styles.stack}>
           <ThemedText type="subtitle">Prototype</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
             Today is {shortDate(todayIso())}.{' '}
@@ -243,7 +249,9 @@ export default function PrototypeScreen() {
               ))
             )}
           </Section>
-        </ScrollView>
+            </View>
+          }
+        />
       </SafeAreaView>
     </ThemedView>
   );
@@ -258,6 +266,7 @@ const styles = StyleSheet.create({
     paddingBottom: BottomTabInset + Spacing.four,
     gap: Spacing.three,
   },
+  stack: { gap: Spacing.three },
   section: { gap: Spacing.two },
   preview: { alignItems: 'center' },
   button: {
