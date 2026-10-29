@@ -1,16 +1,19 @@
 /**
- * Reminder scheduling for the prototype. The goal is to learn, on your own phone,
- * whether reminders arrive on time, overnight, and after a restart.
+ * Notification scheduling.
+ * - syncCardReminders(): the real reminders, re-planned after every change
+ * - schedule*Test*(): prototype checks of reminder reliability on this phone
  */
 import * as Notifications from 'expo-notifications';
 
 import { shortDate, type CardStatus, type IsoDate } from './cycles';
+import { planCardReminders, REMINDER_HOUR } from './reminder-plan';
 
 export const REMINDER_CHANNEL = 'payment-reminders';
-/** Time of day for reminders. Open question in the PRD; 9:00 AM assumed. */
-export const REMINDER_HOUR = 9;
-/** Overdue cards repeat every 4 hours (PRD). The prototype schedules the next 24 hours. */
+/** Overdue cards repeat every 4 hours (PRD). The prototype test schedules the next 24 hours. */
 export const OVERDUE_REPEAT_HOURS = 4;
+
+/** Marks notifications created by syncCardReminders, so a re-sync only replaces those. */
+const CARD_REMINDER_KIND = 'card-reminder';
 
 /**
  * 'bestEffort' = Android may delay it a few minutes to save battery.
@@ -130,4 +133,42 @@ export async function listScheduled(): Promise<ScheduledItem[]> {
 
 export function cancelAllReminders(): Promise<void> {
   return Notifications.cancelAllScheduledNotificationsAsync();
+}
+
+/**
+ * Replaces all card reminders with a fresh plan from the current card states.
+ * Safe to call often: on app open and after every change to cards.
+ * Uses best-effort delivery (may be a few minutes late; no alarm icon). Revisit
+ * after the overnight test on a real phone.
+ */
+export async function syncCardReminders(statuses: CardStatus[], now: Date = new Date()): Promise<number> {
+  await Notifications.setNotificationChannelAsync(REMINDER_CHANNEL, {
+    name: 'Payment reminders',
+    importance: Notifications.AndroidImportance.HIGH,
+  });
+
+  const existing = await Notifications.getAllScheduledNotificationsAsync();
+  for (const r of existing) {
+    if (r.content.data?.kind === CARD_REMINDER_KIND) {
+      await Notifications.cancelScheduledNotificationAsync(r.identifier);
+    }
+  }
+
+  const plan = planCardReminders(statuses, now);
+  for (const p of plan) {
+    await Notifications.scheduleNotificationAsync({
+      identifier: p.id,
+      content: {
+        title: p.title,
+        body: p.body,
+        data: { kind: CARD_REMINDER_KIND, url: `/card/${p.cardId}`, scheduledFor: timeLabel(p.at) },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: p.at,
+        channelId: REMINDER_CHANNEL,
+      },
+    });
+  }
+  return plan.length;
 }

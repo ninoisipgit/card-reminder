@@ -1,16 +1,14 @@
 /**
- * PROTOTYPE TEST SCREEN. Checks the risky parts before the real screens are built:
- * the database, the home-screen widget, and reminder reliability on this phone.
+ * TEST TOOLS (opened from the bottom of the Cards tab). Sample data, a widget
+ * preview, and reminder-reliability checks for this phone. Not part of the real app.
  */
-import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 import { WidgetPreview } from 'react-native-android-widget';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { clearAllData } from '@/data/backup';
 import { getDb } from '@/data/open';
 import { loadSampleData } from '@/data/sample';
@@ -28,8 +26,9 @@ import {
   type Delivery,
   type ScheduledItem,
 } from '@/lib/notifications';
+import { syncAfterChange } from '@/lib/sync';
 import { CardWidget, type CardWidgetProps } from '@/widgets/CardWidget';
-import { loadWidgetData, refreshCardWidget } from '@/widgets/render-card-widget';
+import { loadWidgetData } from '@/widgets/render-card-widget';
 
 type WidgetData = Omit<CardWidgetProps, 'theme'>;
 
@@ -68,9 +67,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export default function PrototypeScreen() {
+export default function TestToolsScreen() {
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
-  const params = useLocalSearchParams<{ card?: string; debt?: string }>();
   const [data, setData] = useState<WidgetData | null>(null);
   const [log, setLog] = useState<string[]>([]);
   const [scheduled, setScheduled] = useState<ScheduledItem[] | null>(null);
@@ -87,22 +85,16 @@ export default function PrototypeScreen() {
     }
   };
 
-  /** Re-reads the database and redraws the home-screen widget. */
+  /** Re-reads the database, redraws the home-screen widget and re-plans reminders. */
   const reload = async () => {
     setData(await loadWidgetData());
-    await refreshCardWidget().catch(() => {});
+    await syncAfterChange();
   };
 
   // Load data and keep the widget current whenever the app opens.
   useEffect(() => {
     reload().catch((e: unknown) => say(`Database FAILED: ${e instanceof Error ? e.message : String(e)}`));
   }, []);
-
-  const openedFrom = params.card
-    ? (data?.cards.find((c) => c.card.id === params.card)?.card.name ?? `card #${params.card}`)
-    : params.debt
-      ? (data?.debts.find((d) => String(d.id) === params.debt)?.personName ?? `debt #${params.debt}`)
-      : undefined;
 
   const loadSample = async () => {
     if (!(await confirm('Load sample data?', 'This replaces all cards and debts.', 'Replace'))) return 'cancelled';
@@ -134,7 +126,6 @@ export default function PrototypeScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
         {/* A FlatList, not a ScrollView: the widget preview contains a list, and
             React Native only allows lists inside other lists. */}
         <FlatList
@@ -142,20 +133,10 @@ export default function PrototypeScreen() {
           contentContainerStyle={styles.content}
           ListHeaderComponent={
             <View style={styles.stack}>
-          <ThemedText type="subtitle">Prototype</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
             Today is {shortDate(todayIso())}.{' '}
             {data ? `${data.cards.length} cards, ${data.debts.length} debts due soon in the database.` : 'Loading…'}
           </ThemedText>
-
-          {openedFrom ? (
-            <View style={[styles.banner, { borderColor: '#16A34A' }]}>
-              <ThemedText type="smallBold">Opened from widget: {openedFrom}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                Row taps work.
-              </ThemedText>
-            </View>
-          ) : null}
 
           <Section title="1. Data">
             <Button label="Load sample data" onPress={run('Sample data', loadSample)} />
@@ -252,18 +233,16 @@ export default function PrototypeScreen() {
             </View>
           }
         />
-      </SafeAreaView>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  safeArea: { flex: 1 },
   content: {
     paddingHorizontal: Spacing.three,
     paddingTop: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.four,
+    paddingBottom: Spacing.four,
     gap: Spacing.three,
   },
   stack: { gap: Spacing.three },
@@ -273,11 +252,5 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two + Spacing.one,
     paddingHorizontal: Spacing.three,
     borderRadius: Spacing.three,
-  },
-  banner: {
-    borderWidth: 2,
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
-    gap: Spacing.one,
   },
 });
