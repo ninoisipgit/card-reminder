@@ -1,56 +1,56 @@
-# Welcome to your Expo app 👋
+# Card Reminder
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A personal Android app that does two things well:
 
-## Get started
+- **Credit cards:** reminds you before each card's due date and keeps a history of every month you marked paid.
+- **Debts:** tracks money you lend to or borrow from family and friends, with partial repayments and a paid history.
 
-1. Install dependencies
+A home-screen widget shows every card and the debts due soon, with **Add card** and **Add debt** buttons. Tapping an unpaid card asks "Mark as paid?".
 
-   ```bash
-   npm install
-   ```
+Everything stays on the phone. There is no account and no server. Backups are a file you save yourself.
 
-2. Start the app
+## Version 1.0.0 features
 
-   ```bash
-   npx expo start
-   ```
+| Area | What it does |
+| --- | --- |
+| Cards | Statement day, days to due (default 20), reminder days (default 3). Monthly cycles are calculated, not stored. Mark as paid with undo; full history (on time / late). Sorted by due date. |
+| Reminders | "Due in 3 days" at your chosen time (default 9:00 AM), then every 4 hours once overdue until marked paid. Optional quiet hours 10 PM – 7 AM. Re-planned after every change. |
+| Debts | Each loan is its own record under a person. "They owe me" / "I owe them". Partial repayments; a debt settles itself when fully repaid. Overpayment is blocked. People sorted by soonest due date. |
+| Paid history | Settled debts grouped by person, searchable. |
+| Widget | Cards and debts due within 7 days, light and dark. Rows open the card or debt; Add card / Add debt buttons. |
+| Settings | Reminder time, quiet at night, notification and battery help, test reminder, backup save/restore, theme, delete all data, download latest version. |
 
-In the output, you'll find options to open the app in a
+## Getting updates on your phone
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+Every push to `master` builds a new APK with GitHub Actions (`.github/workflows/android-apk.yml`) and publishes it here:
 
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+https://github.com/ninoisipgit/card-reminder/releases/latest/download/card-reminder.apk
 
-## Get a fresh project
+Open it on the phone (or use **Settings → Updates → Download latest version**) and tap **Update**. Your data stays: every build is signed with the same key (`credentials/`) and has a higher version code.
 
-When you're ready, run:
+## Developing
+
+Requirements: Node 22.5+, Android Studio (SDK + emulator) or a phone with USB debugging. Keep the project at a short path without spaces (for example `C:\dev\card-reminder`); long Windows paths break the native build.
 
 ```bash
-npm run reset-project
+npm install
+npx expo run:android      # build and install a development build (needed after adding native packages)
+npx expo start -c         # start Metro; JavaScript changes reload instantly
+npm test                  # data-layer and reminder tests (Node's built-in SQLite)
+npx tsc --noEmit          # typecheck
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+Release build on a connected phone: `npx expo run:android --variant release`.
 
-### Other setup steps
+## Project layout
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+| Path | What's there |
+| --- | --- |
+| `src/app/(cards)/` | Cards tab: list, card detail, add/edit, settings, test tools |
+| `src/app/debts/` | Debts tab: people, person, debt, add/edit, repayment, paid history, settings |
+| `src/data/` | SQLite schema and migrations, cards, debts, settings, backup |
+| `src/lib/` | Card cycle math, reminder planning, notifications, sync, display helpers |
+| `src/widgets/` | Home-screen widget |
+| `tests/` | Tests run with `npm test` |
 
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Requirements and decisions: see the product requirements document (Claude doc "Debt & Card Reminder App — Product Requirements").
