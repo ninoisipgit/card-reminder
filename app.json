@@ -20,7 +20,8 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.SCHEDULE_EXACT_ALARM"
-      ]
+      ],
+      "package": "com.cisip.cardreminder"
     },
     "web": {
       "output": "server",
@@ -59,7 +60,8 @@
             }
           ]
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true,

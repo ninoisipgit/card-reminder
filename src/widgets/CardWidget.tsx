@@ -7,8 +7,9 @@ import {
   type ColorProp,
 } from 'react-native-android-widget';
 
+import type { Debt } from '@/data/debts';
 import { toDayNumber, dueLabel, shortDate, type CardStatus, type IsoDate } from '@/lib/cycles';
-import { formatPeso, type DebtDue } from '@/lib/sample-data';
+import { formatPeso } from '@/lib/money';
 
 export type WidgetTheme = 'light' | 'dark';
 
@@ -66,7 +67,8 @@ const PALETTES: Record<WidgetTheme, Palette> = {
 
 export type CardWidgetProps = {
   cards: CardStatus[];
-  debts: DebtDue[];
+  /** Open debts that are overdue or due soon. */
+  debts: Debt[];
   today: IsoDate;
   theme: WidgetTheme;
 };
@@ -160,19 +162,21 @@ function CardRow({ status, p }: { status: CardStatus; p: Palette }) {
   );
 }
 
-function DebtRow({ debt, today, p }: { debt: DebtDue; today: IsoDate; p: Palette }) {
-  const daysLeft = toDayNumber(debt.due) - toDayNumber(today);
+function DebtRow({ debt, today, p }: { debt: Debt; today: IsoDate; p: Palette }) {
+  const due = debt.dueOn ?? today;
+  const daysLeft = toDayNumber(due) - toDayNumber(today);
   const overdue = daysLeft < 0;
-  const who = debt.direction === 'owesMe' ? `${debt.person} owes you` : `You owe ${debt.person}`;
+  const who = debt.direction === 'owes_me' ? `${debt.personName} owes you` : `You owe ${debt.personName}`;
+  const amount = formatPeso(debt.remainingCents);
   const tone = overdue ? { fg: p.overdue, bg: p.overdueBg } : { fg: p.dueSoon, bg: p.dueSoonBg };
   return (
     <Row
       uri={`cardreminder://?debt=${debt.id}`}
-      title={`${who} ${formatPeso(debt.remaining)}`}
-      subtitle={`Due ${shortDate(debt.due)}`}
+      title={`${who} ${amount}`}
+      subtitle={`Due ${shortDate(due)}`}
       badge={<Badge text={dueLabel(daysLeft)} fg={tone.fg} bg={tone.bg} />}
       highlight={overdue}
-      label={`${who} ${formatPeso(debt.remaining)}, ${dueLabel(daysLeft)}`}
+      label={`${who} ${amount}, ${dueLabel(daysLeft)}`}
       p={p}
     />
   );

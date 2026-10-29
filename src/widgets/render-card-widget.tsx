@@ -2,24 +2,33 @@
 import React from 'react';
 import { requestWidgetUpdate } from 'react-native-android-widget';
 
-import { getCardStatus, sortByUrgency, todayIso } from '@/lib/cycles';
-import { debtsForWidget, sampleCards, sampleDebts } from '@/lib/sample-data';
+import { listCardStatuses } from '@/data/cards';
+import { listDebtsDueSoon } from '@/data/debts';
+import { getDb } from '@/data/open';
+import { todayIso } from '@/lib/cycles';
 
 import { CardWidget, type CardWidgetProps } from './CardWidget';
 
 /** Must match the widget `name` in app.json. */
 export const CARD_WIDGET_NAME = 'CardReminder';
 
-export function buildWidgetData(now: Date = new Date()): Omit<CardWidgetProps, 'theme'> {
+/** Debts due within this many days appear on the widget (PRD open question; 7 assumed). */
+export const DEBT_WINDOW_DAYS = 7;
+
+/** Reads what the widget shows from the database. */
+export async function loadWidgetData(now: Date = new Date()): Promise<Omit<CardWidgetProps, 'theme'>> {
   const today = todayIso(now);
-  const cards = sortByUrgency(sampleCards(today).map((c) => getCardStatus(c, today)));
-  const debts = debtsForWidget(sampleDebts(today), today);
+  const db = await getDb();
+  const [cards, debts] = await Promise.all([
+    listCardStatuses(db, today),
+    listDebtsDueSoon(db, today, DEBT_WINDOW_DAYS),
+  ]);
   return { cards, debts, today };
 }
 
 /** Light and dark versions; Android picks one from the system theme. */
-export function renderCardWidget() {
-  const data = buildWidgetData();
+export async function renderCardWidget() {
+  const data = await loadWidgetData();
   return {
     light: <CardWidget {...data} theme="light" />,
     dark: <CardWidget {...data} theme="dark" />,

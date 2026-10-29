@@ -1,18 +1,21 @@
 /**
- * PROTOTYPE TEST SCREEN. Checks the two risky parts before the real app is built:
- * 1. the home-screen widget, 2. reminder reliability on this phone.
+ * PROTOTYPE TEST SCREEN. Checks the risky parts before the real screens are built:
+ * the database, the home-screen widget, and reminder reliability on this phone.
  */
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
 import { WidgetPreview } from 'react-native-android-widget';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Spacing } from '@/constants/theme';
+import { clearAllData } from '@/data/backup';
+import { getDb } from '@/data/open';
+import { loadSampleData } from '@/data/sample';
 import { useTheme } from '@/hooks/use-theme';
-import { dueLabel, shortDate } from '@/lib/cycles';
+import { dueLabel, shortDate, todayIso } from '@/lib/cycles';
 import {
   cancelAllReminders,
   ensureNotificationPermission,
@@ -25,9 +28,20 @@ import {
   type Delivery,
   type ScheduledItem,
 } from '@/lib/notifications';
-import { sampleCards, sampleDebts } from '@/lib/sample-data';
-import { CardWidget } from '@/widgets/CardWidget';
-import { buildWidgetData, refreshCardWidget } from '@/widgets/render-card-widget';
+import { CardWidget, type CardWidgetProps } from '@/widgets/CardWidget';
+import { loadWidgetData, refreshCardWidget } from '@/widgets/render-card-widget';
+
+type WidgetData = Omit<CardWidgetProps, 'theme'>;
+
+/** Resolves true if the user taps the destructive button. */
+function confirm(title: string, message: string, action: string): Promise<boolean> {
+  return new Promise((resolve) =>
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+      { text: action, style: 'destructive', onPress: () => resolve(true) },
+    ]),
+  );
+}
 
 function Button({ label, onPress }: { label: string; onPress: () => void }) {
   const theme = useTheme();
@@ -57,7 +71,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function PrototypeScreen() {
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const params = useLocalSearchParams<{ card?: string; debt?: string }>();
-  const data = useMemo(() => buildWidgetData(), []);
+  const [data, setData] = useState<WidgetData | null>(null);
   const [log, setLog] = useState<string[]>([]);
   const [scheduled, setScheduled] = useState<ScheduledItem[] | null>(null);
 
@@ -73,16 +87,36 @@ export default function PrototypeScreen() {
     }
   };
 
-  // Keep the widget current whenever the app opens.
+  /** Re-reads the database and redraws the home-screen widget. */
+  const reload = async () => {
+    setData(await loadWidgetData());
+    await refreshCardWidget().catch(() => {});
+  };
+
+  // Load data and keep the widget current whenever the app opens.
   useEffect(() => {
-    refreshCardWidget().catch(() => {});
+    reload().catch((e: unknown) => say(`Database FAILED: ${e instanceof Error ? e.message : String(e)}`));
   }, []);
 
   const openedFrom = params.card
-    ? sampleCards(data.today).find((c) => c.id === params.card)?.name
+    ? (data?.cards.find((c) => c.card.id === params.card)?.card.name ?? `card #${params.card}`)
     : params.debt
-      ? sampleDebts(data.today).find((d) => d.id === params.debt)?.person
+      ? (data?.debts.find((d) => String(d.id) === params.debt)?.personName ?? `debt #${params.debt}`)
       : undefined;
+
+  const loadSample = async () => {
+    if (!(await confirm('Load sample data?', 'This replaces all cards and debts.', 'Replace'))) return 'cancelled';
+    await loadSampleData(await getDb(), todayIso());
+    await reload();
+    return 'loaded';
+  };
+
+  const clearData = async () => {
+    if (!(await confirm('Delete everything?', 'All cards, debts and history will be removed.', 'Delete'))) return 'cancelled';
+    await clearAllData(await getDb());
+    await reload();
+    return 'cleared';
+  };
 
   /** Why a test can't be scheduled yet, or undefined when it can. */
   const blockedReason = async (delivery: Delivery): Promise<string | undefined> => {
@@ -104,7 +138,8 @@ export default function PrototypeScreen() {
         <ScrollView contentContainerStyle={styles.content}>
           <ThemedText type="subtitle">Prototype</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            Sample data only. Today is {shortDate(data.today)}.
+            Today is {shortDate(todayIso())}.{' '}
+            {data ? `${data.cards.length} cards, ${data.debts.length} debts due soon in the database.` : 'Loading…'}
           </ThemedText>
 
           {openedFrom ? (
@@ -116,20 +151,27 @@ export default function PrototypeScreen() {
             </View>
           ) : null}
 
-          <Section title="1. Widget">
+          <Section title="1. Data">
+            <Button label="Load sample data" onPress={run('Sample data', loadSample)} />
+            <Button label="Clear all data" onPress={run('Clear data', clearData)} />
+          </Section>
+
+          <Section title="2. Widget">
             <View style={styles.preview}>
-              <WidgetPreview
-                renderWidget={() => <CardWidget {...data} theme={scheme} />}
-                width={320}
-                height={300}
-              />
+              {data ? (
+                <WidgetPreview
+                  renderWidget={() => <CardWidget {...data} theme={scheme} />}
+                  width={320}
+                  height={300}
+                />
+              ) : null}
             </View>
             <ThemedText type="small" themeColor="textSecondary">
               Long-press your home screen → Widgets → card-reminder → Card reminders. It should match
               this preview. Tap a row to test opening the app.
             </ThemedText>
-            <Button label="Refresh widget on home screen" onPress={run('Refresh widget', refreshCardWidget)} />
-            {data.cards.map((c) => (
+            <Button label="Refresh widget on home screen" onPress={run('Refresh widget', reload)} />
+            {data?.cards.map((c) => (
               <ThemedText key={c.card.id} type="small">
                 {c.card.name}: {c.state}, {c.state === 'paid' ? 'next' : dueLabel(c.daysLeft).toLowerCase()} (due{' '}
                 {shortDate(c.current.due)}, remind {shortDate(c.current.reminder)})
@@ -137,7 +179,7 @@ export default function PrototypeScreen() {
             ))}
           </Section>
 
-          <Section title="2. Permissions">
+          <Section title="3. Permissions">
             <Button
               label="Allow notifications"
               onPress={run('Notifications', async () => ((await ensureNotificationPermission()) ? 'allowed' : 'NOT allowed'))}
@@ -148,7 +190,7 @@ export default function PrototypeScreen() {
             />
           </Section>
 
-          <Section title="3. Reminder tests">
+          <Section title="4. Reminder tests">
             <Button
               label="Test in 2 min (best effort)"
               onPress={run('2-min best effort', testIn2Min('bestEffort'))}
@@ -175,7 +217,7 @@ export default function PrototypeScreen() {
               onPress={run('Card reminders', async () => {
                 const blocked = await blockedReason('bestEffort');
                 if (blocked) return blocked;
-                const n = await scheduleCardReminders(data.cards, (await hasExactAlarmPermission()) ? 'alarmClock' : 'bestEffort');
+                const n = await scheduleCardReminders(data?.cards ?? [], (await hasExactAlarmPermission()) ? 'alarmClock' : 'bestEffort');
                 return `${n} scheduled`;
               })}
             />
