@@ -248,8 +248,11 @@ export function CardWidget({ cards, debts, today, theme }: CardWidgetProps) {
         />
       </FlexWidget>
 
-      {/* The list takes the space left over; the add buttons stay pinned below it. */}
-      <FlexWidget style={{ flex: 1, width: 'match_parent' }}>
+      <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', flexGap: 8, paddingBottom: 8 }}>
+        <AddButton label="Add card" uri="cardreminder://card/edit" p={p} />
+        <AddButton label="Add debt" uri="cardreminder://debts/debt/edit" p={p} />
+      </FlexWidget>
+
       <ListWidget style={{ height: 'match_parent', width: 'match_parent' }}>
         <SectionLabel text="CARDS" p={p} />
         {cards.length === 0 ? (
@@ -262,12 +265,6 @@ export function CardWidget({ cards, debts, today, theme }: CardWidgetProps) {
           <DebtRow key={debt.id} debt={debt} today={today} p={p} />
         ))}
       </ListWidget>
-      </FlexWidget>
-
-      <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', flexGap: 8, paddingTop: 8 }}>
-        <AddButton label="+ Card" uri="cardreminder://card/edit" p={p} />
-        <AddButton label="+ Debt" uri="cardreminder://debts/debt/edit" p={p} />
-      </FlexWidget>
     </FlexWidget>
   );
 }
