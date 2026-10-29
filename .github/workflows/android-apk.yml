@@ -1,0 +1,75 @@
+# Builds a release APK on every push to master and publishes it as the
+# "latest" GitHub release. On your phone, open
+#   https://github.com/ninoisipgit/card-reminder/releases/latest/download/card-reminder.apk
+# and tap Update. Your data stays because the signing key and app id are the
+# same, and each build has a higher version code than the last.
+name: Android APK
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch: # also allows "Run workflow" by hand from the Actions tab
+
+permissions:
+  contents: write # to create the release
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: true # only the newest push matters
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install packages
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Generate the Android project
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Use the same signing key as the app on the phone
+        run: cp credentials/android-debug.keystore android/app/debug.keystore
+
+      - name: Give this build a higher version than the last
+        run: |
+          sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          sed -i "s/versionName \"\(.*\)\"$/versionName \"\1 (build ${{ github.run_number }})\"/" android/app/build.gradle
+          grep -n "versionCode\|versionName" android/app/build.gradle
+
+      - name: Build the APK
+        working-directory: android
+        # arm64 only: fits almost every phone from the last several years, and builds faster
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
+
+      - name: Rename
+        run: cp android/app/build/outputs/apk/release/app-release.apk card-reminder.apk
+
+      - name: Publish as the latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Build ${{ github.run_number }}
+          body: |
+            Built from ${{ github.sha }}: ${{ github.event.head_commit.message || 'manual run' }}
+
+            On your phone: download card-reminder.apk below and tap Update.
+          files: card-reminder.apk
+          make_latest: true

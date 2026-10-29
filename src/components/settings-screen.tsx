@@ -11,6 +11,7 @@ import { Alert, AppState, Linking, ScrollView, StyleSheet, Switch, View } from '
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Segmented } from '@/components/ui/choice';
+import { LATEST_APK_URL } from '@/constants/app';
 import { Spacing } from '@/constants/theme';
 import { clearAllData, importBackup, summarize, type BackupSummary } from '@/data/backup';
 import { getDb } from '@/data/open';
@@ -292,6 +293,14 @@ export function SettingsScreen() {
         <ThemedText type="small" themeColor="textSecondary">
           The home-screen widget always follows your phone’s setting.
         </ThemedText>
+      </Section>
+
+      <Section title="UPDATES">
+        <Row
+          label="Get the latest version"
+          detail="Downloads the newest build. Open the file and tap Update; your data stays."
+        />
+        <Button label="Download latest version" variant="secondary" onPress={() => Linking.openURL(LATEST_APK_URL)} />
       </Section>
 
       <Section title="DATA">
