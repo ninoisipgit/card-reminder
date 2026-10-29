@@ -60,7 +60,7 @@ function SectionHeader({ section }: { section: PersonSection }) {
       onPress={() => router.push({ pathname: '/debts/person/[id]', params: { id: String(section.personId) } })}
       style={[styles.sectionHeader, { backgroundColor: theme.background }]}>
       <View style={styles.sectionTitleRow}>
-        <ThemedText type="smallBold" style={{ fontSize: 17, flex: 1 }}>
+        <ThemedText type="smallBold" style={{ fontSize: 19, flex: 1 }}>
           {section.personName}
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary">

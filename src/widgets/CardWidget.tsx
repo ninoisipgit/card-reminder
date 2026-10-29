@@ -82,7 +82,7 @@ export type CardWidgetProps = {
 function Badge({ text, fg, bg }: { text: string; fg: ColorProp; bg: ColorProp }) {
   return (
     <FlexWidget style={{ backgroundColor: bg, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
-      <TextWidget text={text} style={{ fontSize: 12, fontWeight: '600', color: fg }} />
+      <TextWidget text={text} style={{ fontSize: 14, fontWeight: '600', color: fg }} />
     </FlexWidget>
   );
 }
@@ -90,7 +90,7 @@ function Badge({ text, fg, bg }: { text: string; fg: ColorProp; bg: ColorProp })
 function SectionLabel({ text, p }: { text: string; p: Palette }) {
   return (
     <FlexWidget style={{ width: 'match_parent', paddingTop: 6, paddingBottom: 4, paddingHorizontal: 4 }}>
-      <TextWidget text={text} style={{ fontSize: 11, fontWeight: '700', color: p.section }} />
+      <TextWidget text={text} style={{ fontSize: 12, fontWeight: '700', color: p.section }} />
     </FlexWidget>
   );
 }
@@ -127,14 +127,14 @@ function Row({
           justifyContent: 'space-between',
           backgroundColor: highlight ? p.overdueRow : p.row,
           borderRadius: 12,
-          paddingVertical: 8,
+          paddingVertical: 10,
           paddingHorizontal: 12,
-          marginVertical: 3,
+          marginVertical: 4,
         }}
       >
         <FlexWidget style={{ flex: 1, flexDirection: 'column', paddingRight: 8 }}>
-          <TextWidget text={title} maxLines={1} truncate="END" style={{ fontSize: 14, fontWeight: '600', color: p.text }} />
-          <TextWidget text={subtitle} maxLines={1} truncate="END" style={{ fontSize: 12, color: p.muted }} />
+          <TextWidget text={title} maxLines={1} truncate="END" style={{ fontSize: 16, fontWeight: '600', color: p.text }} />
+          <TextWidget text={subtitle} maxLines={1} truncate="END" style={{ fontSize: 14, color: p.muted }} />
         </FlexWidget>
         {badge}
       </FlexWidget>
@@ -150,14 +150,14 @@ function AddButton({ label, uri, p }: { label: string; uri: string; p: Palette }
       accessibilityLabel={label}
       style={{
         flex: 1,
-        height: 40,
+        height: 46,
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: p.button,
         borderRadius: 12,
       }}
     >
-      <TextWidget text={label} style={{ fontSize: 14, fontWeight: '700', color: p.buttonText }} />
+      <TextWidget text={label} style={{ fontSize: 16, fontWeight: '700', color: p.buttonText }} />
     </FlexWidget>
   );
 }
@@ -241,19 +241,16 @@ export function CardWidget({ cards, debts, today, theme }: CardWidgetProps) {
           paddingBottom: 6,
         }}
       >
-        <TextWidget text="Payments" style={{ fontSize: 16, fontWeight: '700', color: p.text }} />
+        <TextWidget text="Payments" style={{ fontSize: 18, fontWeight: '700', color: p.text }} />
         <TextWidget
           text={summary}
-          style={{ fontSize: 12, fontWeight: '600', color: overdue ? p.overdue : p.muted }}
+          style={{ fontSize: 14, fontWeight: '600', color: overdue ? p.overdue : p.muted }}
         />
       </FlexWidget>
 
-      <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', flexGap: 8, paddingBottom: 8 }}>
-        <AddButton label="Add card" uri="cardreminder://card/edit" p={p} />
-        <AddButton label="Add debt" uri="cardreminder://debts/debt/edit" p={p} />
-      </FlexWidget>
-
-      <ListWidget style={{ height: 'match_parent', width: 'match_parent' }}>
+      {/* The list takes the space left over, so the add buttons stay pinned at the bottom. */}
+      <FlexWidget style={{ flex: 1, width: 'match_parent' }}>
+        <ListWidget style={{ height: 'match_parent', width: 'match_parent' }}>
         <SectionLabel text="CARDS" p={p} />
         {cards.length === 0 ? (
           <SectionLabel text="No cards yet. Tap to add one." p={p} />
@@ -264,7 +261,13 @@ export function CardWidget({ cards, debts, today, theme }: CardWidgetProps) {
         {debts.map((debt) => (
           <DebtRow key={debt.id} debt={debt} today={today} p={p} />
         ))}
-      </ListWidget>
+        </ListWidget>
+      </FlexWidget>
+
+      <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', flexGap: 8, paddingTop: 8 }}>
+        <AddButton label="Add card" uri="cardreminder://card/edit" p={p} />
+        <AddButton label="Add debt" uri="cardreminder://debts/debt/edit" p={p} />
+      </FlexWidget>
     </FlexWidget>
   );
 }

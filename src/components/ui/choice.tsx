@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
   segmented: { flexDirection: 'row', borderRadius: Spacing.three, padding: Spacing.one, gap: Spacing.one },
   segment: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 46,
     borderRadius: Spacing.two + Spacing.one,
     alignItems: 'center',
     justifyContent: 'center',

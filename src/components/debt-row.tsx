@@ -27,7 +27,7 @@ export function DebtRow({ debt, today, showPerson = false }: { debt: Debt; today
         },
       ]}>
       <View style={styles.text}>
-        <ThemedText type="smallBold" numberOfLines={1} style={{ fontSize: 16 }}>
+        <ThemedText type="smallBold" numberOfLines={1} style={{ fontSize: 18 }}>
           {title}
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>

@@ -5,7 +5,8 @@ import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
-import { HeaderButtons } from '@/components/ui/header-buttons';
+import { BottomBar } from '@/components/ui/bottom-bar';
+import { HeaderButton } from '@/components/ui/header-button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Spacing } from '@/constants/theme';
 import { listOpenDebts, listPersonBalances, type Debt, type PersonBalance, type Totals } from '@/data/debts';
@@ -55,7 +56,7 @@ function PersonRow({ row }: { row: PersonRowData }) {
       onPress={() => router.push({ pathname: '/debts/person/[id]', params: { id: String(person.id) } })}
       style={({ pressed }) => [styles.row, { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.7 : 1 }]}>
       <View style={styles.rowText}>
-        <ThemedText type="smallBold" numberOfLines={1} style={{ fontSize: 16 }}>
+        <ThemedText type="smallBold" numberOfLines={1} style={{ fontSize: 18 }}>
           {person.name}
         </ThemedText>
         <ThemedText type="smallBold" style={{ color: net.color }}>
@@ -105,21 +106,12 @@ export default function DebtsScreen() {
   const addDebt = () => router.push('/debts/debt/edit');
 
   return (
-    <>
+    <View style={[styles.screen, { backgroundColor: theme.background }]}>
       <Stack.Screen
-        options={{
-          headerRight: () => (
-            <HeaderButtons
-              buttons={[
-                { label: 'Settings', onPress: () => router.push('/debts/settings') },
-                { label: 'Add', onPress: addDebt },
-              ]}
-            />
-          ),
-        }}
+        options={{ headerRight: () => <HeaderButton label="Settings" onPress={() => router.push('/debts/settings')} /> }}
       />
       <FlatList
-        style={{ backgroundColor: theme.background }}
+        style={styles.screen}
         contentContainerStyle={styles.content}
         data={rows ?? []}
         keyExtractor={(r) => String(r.person.id)}
@@ -133,7 +125,7 @@ export default function DebtsScreen() {
                   <ThemedText type="small" style={{ color: theme.success }}>
                     Owed to you
                   </ThemedText>
-                  <ThemedText type="smallBold" style={{ color: theme.success, fontSize: 20 }}>
+                  <ThemedText type="smallBold" style={{ color: theme.success, fontSize: 24 }}>
                     {formatPeso(totals.owedToMeCents)}
                   </ThemedText>
                 </View>
@@ -141,7 +133,7 @@ export default function DebtsScreen() {
                   <ThemedText type="small" style={{ color: theme.danger }}>
                     You owe
                   </ThemedText>
-                  <ThemedText type="smallBold" style={{ color: theme.danger, fontSize: 20 }}>
+                  <ThemedText type="smallBold" style={{ color: theme.danger, fontSize: 24 }}>
                     {formatPeso(totals.iOweCents)}
                   </ThemedText>
                 </View>
@@ -152,13 +144,12 @@ export default function DebtsScreen() {
         ListEmptyComponent={
           rows ? (
             <View style={styles.empty}>
-              <ThemedText type="smallBold" style={{ fontSize: 16 }}>
+              <ThemedText type="smallBold" style={{ fontSize: 18 }}>
                 No open debts
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
                 Record money you lend or borrow. Repayments can be added bit by bit.
               </ThemedText>
-              <Button label="Add a debt" onPress={addDebt} />
             </View>
           ) : undefined
         }
@@ -170,11 +161,15 @@ export default function DebtsScreen() {
           </Pressable>
         }
       />
-    </>
+      <BottomBar>
+        <Button label="Add debt" onPress={addDebt} />
+      </BottomBar>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1 },
   content: { padding: Spacing.three, gap: Spacing.two },
   header: { gap: Spacing.three, marginBottom: Spacing.one },
   totals: { flexDirection: 'row', gap: Spacing.two },

@@ -13,7 +13,7 @@ export function HeaderButton({ label, onPress }: { label: string; onPress: () =>
       onPress={onPress}
       hitSlop={Spacing.two}
       style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, paddingHorizontal: Spacing.one })}>
-      <ThemedText type="smallBold" style={{ color: theme.accent, fontSize: 16 }}>
+      <ThemedText type="smallBold" style={{ color: theme.accent, fontSize: 18 }}>
         {label}
       </ThemedText>
     </Pressable>

@@ -98,7 +98,7 @@ export default function PersonScreen() {
             <ThemedText type="small" style={{ color: theme.success }}>
               Owes you
             </ThemedText>
-            <ThemedText type="smallBold" style={{ color: theme.success, fontSize: 20 }}>
+            <ThemedText type="smallBold" style={{ color: theme.success, fontSize: 24 }}>
               {formatPeso(owedToMe)}
             </ThemedText>
           </View>
@@ -106,7 +106,7 @@ export default function PersonScreen() {
             <ThemedText type="small" style={{ color: theme.danger }}>
               You owe
             </ThemedText>
-            <ThemedText type="smallBold" style={{ color: theme.danger, fontSize: 20 }}>
+            <ThemedText type="smallBold" style={{ color: theme.danger, fontSize: 24 }}>
               {formatPeso(iOwe)}
             </ThemedText>
           </View>

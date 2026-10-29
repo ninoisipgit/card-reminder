@@ -83,7 +83,7 @@ export default function RepayScreen() {
             <ThemedText type="small" themeColor="textSecondary">
               {whoOwes(debt)}
             </ThemedText>
-            <ThemedText type="smallBold" style={{ fontSize: 20 }}>
+            <ThemedText type="smallBold" style={{ fontSize: 24 }}>
               {formatPeso(debt.remainingCents)} still owed
             </ThemedText>
           </View>

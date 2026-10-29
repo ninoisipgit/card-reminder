@@ -43,10 +43,10 @@ export function TextField({
 const styles = StyleSheet.create({
   field: { gap: Spacing.one },
   input: {
-    minHeight: 48,
+    minHeight: 54,
     borderWidth: 1,
     borderRadius: Spacing.two + Spacing.one,
     paddingHorizontal: Spacing.three,
-    fontSize: 16,
+    fontSize: 18,
   },
 });

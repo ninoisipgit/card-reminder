@@ -5,7 +5,8 @@ import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
-import { HeaderButtons } from '@/components/ui/header-buttons';
+import { BottomBar } from '@/components/ui/bottom-bar';
+import { HeaderButton } from '@/components/ui/header-button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Spacing } from '@/constants/theme';
 import { listCardStatuses } from '@/data/cards';
@@ -30,7 +31,7 @@ function CardRow({ status }: { status: CardStatus }) {
         },
       ]}>
       <View style={styles.rowText}>
-        <ThemedText type="smallBold" numberOfLines={1} style={{ fontSize: 16 }}>
+        <ThemedText type="smallBold" numberOfLines={1} style={{ fontSize: 18 }}>
           {status.card.name}
           {status.overdueCount > 1 ? ` · ${status.overdueCount} unpaid` : ''}
         </ThemedText>
@@ -72,21 +73,12 @@ export default function CardsScreen() {
   const addCard = () => router.push('/card/edit');
 
   return (
-    <>
+    <View style={[styles.screen, { backgroundColor: theme.background }]}>
       <Stack.Screen
-        options={{
-          headerRight: () => (
-            <HeaderButtons
-              buttons={[
-                { label: 'Settings', onPress: () => router.push('/settings') },
-                { label: 'Add', onPress: addCard },
-              ]}
-            />
-          ),
-        }}
+        options={{ headerRight: () => <HeaderButton label="Settings" onPress={() => router.push('/settings')} /> }}
       />
       <FlatList
-        style={{ backgroundColor: theme.background }}
+        style={styles.screen}
         contentContainerStyle={styles.content}
         data={cards ?? []}
         keyExtractor={(s) => s.card.id}
@@ -105,22 +97,25 @@ export default function CardsScreen() {
         ListEmptyComponent={
           cards ? (
             <View style={styles.empty}>
-              <ThemedText type="smallBold" style={{ fontSize: 16 }}>
+              <ThemedText type="smallBold" style={{ fontSize: 18 }}>
                 No cards yet
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
                 Add a credit card with its statement day. The app works out the due date and reminds you 3 days before.
               </ThemedText>
-              <Button label="Add a card" onPress={addCard} />
             </View>
           ) : undefined
         }
       />
-    </>
+      <BottomBar>
+        <Button label="Add card" onPress={addCard} />
+      </BottomBar>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1 },
   content: { padding: Spacing.three, gap: Spacing.two },
   row: {
     flexDirection: 'row',
