@@ -41,3 +41,7 @@ example
 # generated native folders
 /ios
 /android
+
+# diagnostic logs
+crash-log.txt
+build-log.txt

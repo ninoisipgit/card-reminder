@@ -61,7 +61,8 @@
           ]
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "./plugins/with-no-minify"
     ],
     "experiments": {
       "typedRoutes": true,
