@@ -1,4 +1,7 @@
-/** Record part or all of a debt being paid back. ?id= is the debt. */
+/**
+ * Record part or all of a debt being paid back. ?id= is the debt.
+ * The amount starts filled in with everything still owed; edit it for a partial repayment.
+ */
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -18,6 +21,11 @@ import { whoOwes } from '@/lib/debt-display';
 import { formatPeso, parsePesoToCents } from '@/lib/money';
 import { syncAfterChange } from '@/lib/sync';
 
+/** 150000 -> '1500', 150050 -> '1500.50' (what the user would type) */
+function toInput(cents: number): string {
+  return (cents / 100).toFixed(cents % 100 === 0 ? 0 : 2);
+}
+
 export default function RepayScreen() {
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -32,7 +40,9 @@ export default function RepayScreen() {
   useEffect(() => {
     (async () => {
       try {
-        setDebt(await getDebt(await getDb(), Number(id)));
+        const d = await getDebt(await getDb(), Number(id));
+        setDebt(d);
+        setAmount(toInput(d.remainingCents)); // pre-fill with the full amount still owed
       } catch (e) {
         setError(errorMessage(e));
       }
@@ -41,11 +51,14 @@ export default function RepayScreen() {
 
   const cents = parsePesoToCents(amount);
   const tooMuch = debt !== null && cents !== null && cents > debt.remainingCents;
-  const fullAmount = debt ? (debt.remainingCents / 100).toFixed(debt.remainingCents % 100 === 0 ? 0 : 2) : '';
+  const fullAmount = debt ? toInput(debt.remainingCents) : '';
 
   const save = async () => {
     if (!debt) return;
     if (cents === null) return setError('Enter an amount more than ₱0.');
+    if (cents > debt.remainingCents) {
+      return setError(`The amount can’t be more than the ${formatPeso(debt.remainingCents)} still owed.`);
+    }
     setSaving(true);
     setError(null);
     try {
@@ -83,7 +96,6 @@ export default function RepayScreen() {
             onChangeText={setAmount}
             keyboardType="decimal-pad"
             placeholder="0"
-            autoFocus
             hint={
               debt && cents !== null && !tooMuch
                 ? cents === debt.remainingCents
@@ -95,7 +107,7 @@ export default function RepayScreen() {
               amount !== '' && cents === null
                 ? 'Enter a number, like 500 or 500.50.'
                 : tooMuch
-                  ? `That’s more than the ${formatPeso(debt!.remainingCents)} still owed.`
+                  ? `Can’t be more than the ${formatPeso(debt!.remainingCents)} still owed.`
                   : undefined
             }
           />
@@ -112,7 +124,7 @@ export default function RepayScreen() {
 
         {error ? <ThemedText style={{ color: theme.danger }}>{error}</ThemedText> : null}
 
-        <Button label="Save repayment" onPress={save} busy={saving} disabled={!debt || tooMuch} />
+        <Button label="Save repayment" onPress={save} busy={saving} disabled={!debt || cents === null || tooMuch} />
       </ScrollView>
     </>
   );
