@@ -5,7 +5,7 @@
 import {
   firstUnpaidCycle,
   getCardStatus,
-  sortByUrgency,
+  sortByDueDate,
   toDayNumber,
   type CardConfig,
   type CardStatus,
@@ -135,10 +135,10 @@ export async function listCards(db: Db): Promise<CardConfig[]> {
   return rows.map(toConfig);
 }
 
-/** Every card with its current cycle and state, most urgent first. */
+/** Every card with its current cycle and state, by due date (soonest first). */
 export async function listCardStatuses(db: Db, today: IsoDate): Promise<CardStatus[]> {
   const cards = await listCards(db);
-  return sortByUrgency(cards.map((c) => getCardStatus(c, today)));
+  return sortByDueDate(cards.map((c) => getCardStatus(c, today)));
 }
 
 export async function getCardStatusById(db: Db, id: number, today: IsoDate): Promise<CardStatus> {

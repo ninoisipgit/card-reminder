@@ -111,7 +111,7 @@ describe('cards', () => {
     assert.equal((await listCardHistory(db, id))[0].statementDate, '2026-10-05');
   });
 
-  it('lists most urgent first and deleting removes history', async () => {
+  it('lists by due date, soonest first, and deleting removes history', async () => {
     const db = await freshDb();
     const a = await addCard(db, { name: 'A later', statementDay: 20 }, '2026-10-21');
     const b = await addCard(db, { name: 'B overdue', statementDay: 5 }, '2026-10-01');

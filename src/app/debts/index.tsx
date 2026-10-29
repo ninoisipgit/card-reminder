@@ -19,15 +19,23 @@ import { formatPeso } from '@/lib/money';
 type PersonRowData = PersonBalance & {
   /** The most urgent badge among this person's open debts, if any. */
   badge: ReturnType<typeof debtBadge>;
+  /** Earliest due date among their open debts, for sorting. */
+  nextDue: IsoDate | null;
 };
 
+/** People sorted by their soonest due date; people with no due dates last, by name. */
 function buildRows(balances: PersonBalance[], open: Debt[], today: IsoDate): PersonRowData[] {
-  return balances.map((b) => {
-    const badges = open
-      .filter((d) => d.personId === b.person.id)
-      .map((d) => debtBadge(d, today))
-      .filter((x): x is NonNullable<typeof x> => x !== null);
-    return { ...b, badge: badges.find((x) => x.tone === 'danger') ?? badges[0] ?? null };
+  const rows = balances.map((b) => {
+    const theirs = open.filter((d) => d.personId === b.person.id);
+    const badges = theirs.map((d) => debtBadge(d, today)).filter((x): x is NonNullable<typeof x> => x !== null);
+    const dues = theirs.map((d) => d.dueOn).filter((x): x is IsoDate => x !== null).sort();
+    return { ...b, badge: badges.find((x) => x.tone === 'danger') ?? badges[0] ?? null, nextDue: dues[0] ?? null };
+  });
+  return rows.sort((a, b) => {
+    if (a.nextDue && b.nextDue && a.nextDue !== b.nextDue) return a.nextDue < b.nextDue ? -1 : 1;
+    if (a.nextDue && !b.nextDue) return -1;
+    if (!a.nextDue && b.nextDue) return 1;
+    return a.person.name.localeCompare(b.person.name);
   });
 }
 

@@ -28,6 +28,8 @@ type Palette = {
   paidBg: ColorProp;
   neutral: ColorProp;
   neutralBg: ColorProp;
+  button: ColorProp;
+  buttonText: ColorProp;
 };
 
 const PALETTES: Record<WidgetTheme, Palette> = {
@@ -46,6 +48,8 @@ const PALETTES: Record<WidgetTheme, Palette> = {
     paidBg: '#DCFCE7',
     neutral: '#374151',
     neutralBg: '#E5E7EB',
+    button: '#1D4ED8',
+    buttonText: '#FFFFFF',
   },
   dark: {
     background: '#1C1C1E',
@@ -62,6 +66,8 @@ const PALETTES: Record<WidgetTheme, Palette> = {
     paidBg: '#163A24',
     neutral: '#E4E4E7',
     neutralBg: '#3A3A3C',
+    button: '#93C5FD',
+    buttonText: '#0B1220',
   },
 };
 
@@ -132,6 +138,26 @@ function Row({
         </FlexWidget>
         {badge}
       </FlexWidget>
+    </FlexWidget>
+  );
+}
+
+function AddButton({ label, uri, p }: { label: string; uri: string; p: Palette }) {
+  return (
+    <FlexWidget
+      clickAction="OPEN_URI"
+      clickActionData={{ uri }}
+      accessibilityLabel={label}
+      style={{
+        flex: 1,
+        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: p.button,
+        borderRadius: 12,
+      }}
+    >
+      <TextWidget text={label} style={{ fontSize: 14, fontWeight: '700', color: p.buttonText }} />
     </FlexWidget>
   );
 }
@@ -222,6 +248,8 @@ export function CardWidget({ cards, debts, today, theme }: CardWidgetProps) {
         />
       </FlexWidget>
 
+      {/* The list takes the space left over; the add buttons stay pinned below it. */}
+      <FlexWidget style={{ flex: 1, width: 'match_parent' }}>
       <ListWidget style={{ height: 'match_parent', width: 'match_parent' }}>
         <SectionLabel text="CARDS" p={p} />
         {cards.length === 0 ? (
@@ -234,6 +262,12 @@ export function CardWidget({ cards, debts, today, theme }: CardWidgetProps) {
           <DebtRow key={debt.id} debt={debt} today={today} p={p} />
         ))}
       </ListWidget>
+      </FlexWidget>
+
+      <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', flexGap: 8, paddingTop: 8 }}>
+        <AddButton label="+ Card" uri="cardreminder://card/edit" p={p} />
+        <AddButton label="+ Debt" uri="cardreminder://debts/debt/edit" p={p} />
+      </FlexWidget>
     </FlexWidget>
   );
 }

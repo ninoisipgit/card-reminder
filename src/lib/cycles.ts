@@ -138,11 +138,11 @@ export function getCardStatus(card: CardConfig, today: IsoDate): CardStatus {
   return { card, current, state, daysLeft, overdueCount };
 }
 
-/** Sort for display: overdue first, then nearest due date. */
-export function sortByUrgency(statuses: CardStatus[]): CardStatus[] {
-  const rank: Record<CycleState, number> = { overdue: 0, dueSoon: 1, upcoming: 2, paid: 3 };
+/** Sort for display: by due date, soonest first (overdue cards come first naturally). Ties by name. */
+export function sortByDueDate(statuses: CardStatus[]): CardStatus[] {
   return [...statuses].sort(
-    (a, b) => rank[a.state] - rank[b.state] || a.daysLeft - b.daysLeft,
+    (a, b) =>
+      toDayNumber(a.current.due) - toDayNumber(b.current.due) || a.card.name.localeCompare(b.card.name),
   );
 }
 

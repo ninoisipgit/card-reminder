@@ -4,6 +4,7 @@ import {
   addDays,
   cycleFor,
   getCardStatus,
+  sortByDueDate,
   statementDateFor,
   type CardConfig,
 } from '../src/lib/cycles';
@@ -78,4 +79,16 @@ assert.equal(getCardStatus({ ...base, addedOn: '2026-10-26' }, '2026-10-26').cur
 
 assert.equal(addDays('2026-12-31', 1), '2027-01-01');
 
+
+  // Sorted by due date, not by state: a paid card due sooner comes before an unpaid one due later
+  {
+    // Unpaid: statement day 9, 30 days to due, added Oct 10 -> current cycle Oct 9 -> due Nov 8
+    const upcoming = getCardStatus({ ...base, id: 'u', name: 'Upcoming', statementDay: 9, daysToDue: 30, addedOn: '2026-10-10' }, '2026-10-10');
+    // Paid for Sep 15; next statement Oct 15 -> due Nov 4
+    const paid = getCardStatus({ ...base, id: 'p', name: 'Paid', statementDay: 15, addedOn: '2026-09-01', lastPaidStatement: '2026-09-15' }, '2026-10-10');
+    assert.equal(upcoming.current.due, '2026-11-08');
+    assert.equal(paid.state, 'paid');
+    assert.equal(paid.current.due, '2026-11-04');
+    assert.deepEqual(sortByDueDate([upcoming, paid]).map((s) => s.card.name), ['Paid', 'Upcoming']);
+  }
 });
