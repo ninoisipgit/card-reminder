@@ -280,6 +280,114 @@ export async function addRepayment(
   return id;
 }
 
+export type SettleResult = {
+  /** How many debts were closed. */
+  settledCount: number;
+  /** Total recorded, per direction. */
+  owedToMeCents: number;
+  iOweCents: number;
+  /** The repayments just added, so the whole settle can be undone. */
+  repaymentIds: number[];
+};
+
+/**
+ * Settles everything still open with one person: each open debt gets a repayment
+ * for exactly what is left, dated `paidOn`. All or nothing.
+ * `direction` limits it to one side (e.g. only what they owe you).
+ */
+export async function settleAllWithPerson(
+  db: Db,
+  personId: number,
+  paidOn: IsoDate,
+  direction?: Direction,
+): Promise<SettleResult> {
+  assertIsoDate(paidOn, 'Date');
+  const result: SettleResult = { settledCount: 0, owedToMeCents: 0, iOweCents: 0, repaymentIds: [] };
+  await db.withTransactionAsync(async () => {
+    await getPerson(db, personId);
+    const open = (await listOpenDebts(db, personId)).filter((d) => !direction || d.direction === direction);
+    if (open.length === 0) throw new DataError('ALREADY_SETTLED', 'Nothing left to settle.');
+    for (const d of open) {
+      const res = await db.runAsync(
+        'INSERT INTO repayments (debt_id, amount_cents, paid_on, note, created_at) VALUES (?, ?, ?, ?, ?)',
+        d.id, d.remainingCents, paidOn, 'Settled all', nowIso(),
+      );
+      result.repaymentIds.push(res.lastInsertRowId);
+      await refreshSettled(db, d.id);
+      result.settledCount += 1;
+      if (d.direction === 'owes_me') result.owedToMeCents += d.remainingCents;
+      else result.iOweCents += d.remainingCents;
+    }
+  });
+  return result;
+}
+
+export type Allocation = { debt: Debt; payCents: number };
+
+/**
+ * Splits one payment across debts, oldest first (by date lent, then by when it was added).
+ * Each debt gets at most what is left on it. Pure: nothing is saved.
+ */
+export function allocatePayment(debts: Debt[], amountCents: number): Allocation[] {
+  const oldestFirst = [...debts].sort((a, b) => (a.lentOn === b.lentOn ? a.id - b.id : a.lentOn < b.lentOn ? -1 : 1));
+  const out: Allocation[] = [];
+  let left = amountCents;
+  for (const debt of oldestFirst) {
+    if (left <= 0) break;
+    const payCents = Math.min(left, debt.remainingCents);
+    if (payCents > 0) out.push({ debt, payCents });
+    left -= payCents;
+  }
+  return out;
+}
+
+/**
+ * Records one payment from (or to) a person, paying off their oldest debts first.
+ * Can't be more than the total still owed in that direction. All or nothing.
+ */
+export async function payLumpSum(
+  db: Db,
+  personId: number,
+  direction: Direction,
+  amountCents: number,
+  paidOn: IsoDate,
+): Promise<SettleResult> {
+  assertCents(amountCents, 'Payment');
+  assertIsoDate(paidOn, 'Date');
+  const result: SettleResult = { settledCount: 0, owedToMeCents: 0, iOweCents: 0, repaymentIds: [] };
+  await db.withTransactionAsync(async () => {
+    await getPerson(db, personId);
+    const open = (await listOpenDebts(db, personId)).filter((d) => d.direction === direction);
+    if (open.length === 0) throw new DataError('ALREADY_SETTLED', 'Nothing left to pay.');
+    const owed = open.reduce((t, d) => t + d.remainingCents, 0);
+    if (amountCents > owed) throw new DataError('OVERPAYMENT', 'That’s more than what is still owed.');
+    for (const { debt, payCents } of allocatePayment(open, amountCents)) {
+      const res = await db.runAsync(
+        'INSERT INTO repayments (debt_id, amount_cents, paid_on, note, created_at) VALUES (?, ?, ?, ?, ?)',
+        debt.id, payCents, paidOn, 'Lump sum', nowIso(),
+      );
+      result.repaymentIds.push(res.lastInsertRowId);
+      await refreshSettled(db, debt.id);
+      if (payCents === debt.remainingCents) result.settledCount += 1;
+    }
+    if (direction === 'owes_me') result.owedToMeCents = amountCents;
+    else result.iOweCents = amountCents;
+  });
+  return result;
+}
+
+/** Undoes a settle-all or lump sum: removes its repayments, reopening those debts. */
+export async function undoSettleAll(db: Db, repaymentIds: number[]): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    for (const id of repaymentIds) {
+      const row = await db.getFirstAsync<{ debt_id: number }>('SELECT debt_id FROM repayments WHERE id = ?', id);
+      if (!row) continue; // already removed by hand
+      await db.runAsync('DELETE FROM repayments WHERE id = ?', id);
+      await refreshSettled(db, row.debt_id);
+    }
+  });
+}
+
 /** Removing a repayment from a settled debt reopens it. */
 export async function deleteRepayment(db: Db, repaymentId: number): Promise<void> {
   await db.withTransactionAsync(async () => {

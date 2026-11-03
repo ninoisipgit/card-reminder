@@ -63,7 +63,7 @@ export default function DebtScreen() {
       <View style={[styles.center, { backgroundColor: theme.background }]}>
         <Stack.Screen options={{ title: 'Debt' }} />
         <ThemedText type="smallBold">This debt no longer exists.</ThemedText>
-        <Button label="Back to debts" variant="secondary" onPress={() => router.dismissTo('/debts')} />
+        <Button label="Back to debts" variant="secondary" onPress={() => router.dismissTo('/')} />
       </View>
     );
   }

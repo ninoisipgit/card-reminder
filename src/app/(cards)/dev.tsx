@@ -69,7 +69,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 /** Release builds (the phone) never show this screen, even from an old link. */
 export default function TestToolsRoute() {
-  if (!__DEV__) return <Redirect href="/" />;
+  if (!__DEV__) return <Redirect href="/cards" />;
   return <TestToolsScreen />;
 }
 

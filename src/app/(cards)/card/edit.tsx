@@ -104,7 +104,7 @@ export default function EditCardScreen() {
           try {
             await deleteCard(await getDb(), Number(id));
             syncAfterChange();
-            router.dismissTo('/');
+            router.dismissTo('/cards');
           } catch (e) {
             setError(errorMessage(e));
           }

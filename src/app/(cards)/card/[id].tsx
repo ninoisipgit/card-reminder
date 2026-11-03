@@ -1,4 +1,7 @@
-/** Card detail: this month's cycle, "Mark paid" with undo, and the full payment history. */
+/**
+ * Card detail: this month's cycle, "Mark paid" (with an optional bill amount) and undo,
+ * then the full payment history with monthly spending.
+ */
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
@@ -7,12 +10,14 @@ import { ThemedText } from '@/components/themed-text';
 import { BottomBar } from '@/components/ui/bottom-bar';
 import { Button } from '@/components/ui/button';
 import { HeaderButton } from '@/components/ui/header-button';
+import { TextField } from '@/components/ui/text-field';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Spacing } from '@/constants/theme';
 import {
   getCardStatusById,
   listCardHistory,
   markCurrentCyclePaid,
+  spendingSummary,
   undoLastPayment,
   type CardPayment,
 } from '@/data/cards';
@@ -22,6 +27,7 @@ import { DEFAULT_SETTINGS, formatTime, getSettings } from '@/data/settings';
 import { useTheme } from '@/hooks/use-theme';
 import { cardBadgeText, cardTone, errorMessage } from '@/lib/card-display';
 import { shortDate, toDayNumber, todayIso, type CardStatus } from '@/lib/cycles';
+import { formatPeso, parsePesoToCents } from '@/lib/money';
 import { syncAfterChange } from '@/lib/sync';
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -37,12 +43,20 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 function HistoryRow({ payment, onUndo }: { payment: CardPayment; onUndo?: () => void }) {
   const theme = useTheme();
+  const editAmount = () => router.push({ pathname: '/card/amount', params: { payment: String(payment.id) } });
   return (
     <View style={[styles.historyRow, { borderColor: theme.border }]}>
       <View style={styles.historyText}>
         <ThemedText type="smallBold">Statement {shortDate(payment.statementDate)}</ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
           Due {shortDate(payment.dueDate)} · Marked paid {shortDate(payment.paidOn)}
+        </ThemedText>
+        <ThemedText
+          type="smallBold"
+          onPress={editAmount}
+          accessibilityRole="button"
+          style={[styles.amountLink, { color: payment.amountCents !== null ? theme.text : theme.accent }]}>
+          {payment.amountCents !== null ? formatPeso(payment.amountCents) : '+ Add bill amount'}
         </ThemedText>
       </View>
       <View style={styles.historyRight}>
@@ -64,6 +78,8 @@ export default function CardDetailScreen() {
   const [busy, setBusy] = useState(false);
   /** The payment just made on this screen, for the inline Undo. */
   const [justPaid, setJustPaid] = useState<CardPayment | null>(null);
+  /** Optional bill amount typed before tapping Mark as paid. */
+  const [amount, setAmount] = useState('');
   const [reminderTime, setReminderTime] = useState(formatTime(DEFAULT_SETTINGS.reminderHour, DEFAULT_SETTINGS.reminderMinute));
 
   const load = useCallback(async () => {
@@ -93,8 +109,10 @@ export default function CardDetailScreen() {
   const markPaid = async () => {
     setBusy(true);
     try {
-      const payment = await markCurrentCyclePaid(await getDb(), cardId, todayIso());
+      const cents = amount.trim() ? parsePesoToCents(amount) : null;
+      const payment = await markCurrentCyclePaid(await getDb(), cardId, todayIso(), todayIso(), cents);
       setJustPaid(payment);
+      setAmount('');
       await load();
       syncAfterChange();
     } catch (e) {
@@ -129,7 +147,7 @@ export default function CardDetailScreen() {
       <View style={[styles.center, { backgroundColor: theme.background }]}>
         <Stack.Screen options={{ title: 'Card' }} />
         <ThemedText type="smallBold">This card no longer exists.</ThemedText>
-        <Button label="Back to cards" variant="secondary" onPress={() => router.dismissTo('/')} />
+        <Button label="Back to cards" variant="secondary" onPress={() => router.dismissTo('/cards')} />
       </View>
     );
   }
@@ -144,6 +162,8 @@ export default function CardDetailScreen() {
 
   const { card, current, state, overdueCount } = status;
   const statementOut = toDayNumber(todayIso()) >= toDayNumber(current.statement);
+  const amountInvalid = amount.trim() !== '' && parsePesoToCents(amount) === null;
+  const spending = spendingSummary(history);
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
@@ -181,16 +201,27 @@ export default function CardDetailScreen() {
           <View style={[styles.undoBar, { backgroundColor: theme.successBackground }]}>
             <ThemedText type="smallBold" style={[styles.undoText, { color: theme.success }]}>
               Marked paid: statement {shortDate(justPaid.statementDate)}
+            {justPaid.amountCents !== null ? ` · ${formatPeso(justPaid.amountCents)}` : ''}
             </ThemedText>
             <Button label="Undo" variant="plain" onPress={undo} disabled={busy} />
           </View>
         ) : null}
 
-        {!statementOut ? (
+        {statementOut ? (
+          <TextField
+            label={`Bill amount for ${shortDate(current.statement)} (optional)`}
+            value={amount}
+            onChangeText={setAmount}
+            keyboardType="decimal-pad"
+            placeholder="e.g. 12500"
+            hint="Saved with the payment, so history shows your monthly spending."
+            error={amountInvalid ? 'Enter a number, like 12500 or 12500.50.' : undefined}
+          />
+        ) : (
           <ThemedText type="small" themeColor="textSecondary" style={styles.centerText}>
             Nothing to pay yet. The next statement comes out {shortDate(current.statement)}.
           </ThemedText>
-        ) : null}
+        )}
         <ThemedText type="small" themeColor="textSecondary" style={styles.centerText}>
           “Mark as paid” is your own record. It doesn’t check with the bank.
         </ThemedText>
@@ -200,6 +231,26 @@ export default function CardDetailScreen() {
         <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionTitle}>
           HISTORY
         </ThemedText>
+        {spending ? (
+          <View style={[styles.spending, { backgroundColor: theme.backgroundElement }]}>
+            <View style={styles.spendingCell}>
+              <ThemedText type="small" themeColor="textSecondary">
+                Average a month
+              </ThemedText>
+              <ThemedText type="smallBold" style={{ fontSize: 20 }}>
+                {formatPeso(spending.averageCents)}
+              </ThemedText>
+            </View>
+            <View style={styles.spendingCell}>
+              <ThemedText type="small" themeColor="textSecondary">
+                Total, {spending.months} {spending.months === 1 ? 'month' : 'months'}
+              </ThemedText>
+              <ThemedText type="smallBold" style={{ fontSize: 20 }}>
+                {formatPeso(spending.totalCents)}
+              </ThemedText>
+            </View>
+          </View>
+        ) : null}
         {history.length === 0 ? (
           <ThemedText type="small" themeColor="textSecondary">
             No payments marked yet.
@@ -212,7 +263,7 @@ export default function CardDetailScreen() {
       </ScrollView>
       {statementOut ? (
         <BottomBar>
-          <Button label="Mark as paid" onPress={markPaid} busy={busy} />
+          <Button label="Mark as paid" onPress={markPaid} busy={busy} disabled={amountInvalid} />
         </BottomBar>
       ) : null}
     </View>
@@ -243,4 +294,7 @@ const styles = StyleSheet.create({
   },
   historyText: { flex: 1, gap: Spacing.half },
   historyRight: { alignItems: 'flex-end' },
+  amountLink: { paddingVertical: Spacing.half },
+  spending: { flexDirection: 'row', padding: Spacing.three, borderRadius: Spacing.three, gap: Spacing.three },
+  spendingCell: { flex: 1, gap: Spacing.half },
 });

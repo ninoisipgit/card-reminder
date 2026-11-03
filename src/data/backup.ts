@@ -13,7 +13,7 @@ const TABLES = {
   people: ['id', 'name', 'created_at'],
   cards: ['id', 'name', 'statement_day', 'days_to_due', 'reminder_days_before', 'added_on', 'created_at', 'updated_at'],
   debts: ['id', 'person_id', 'direction', 'amount_cents', 'description', 'lent_on', 'due_on', 'settled_on', 'created_at', 'updated_at'],
-  card_payments: ['id', 'card_id', 'statement_date', 'due_date', 'paid_on', 'created_at'],
+  card_payments: ['id', 'card_id', 'statement_date', 'due_date', 'paid_on', 'amount_cents', 'created_at'],
   repayments: ['id', 'debt_id', 'amount_cents', 'paid_on', 'note', 'created_at'],
   settings: ['key', 'value'],
 } as const;

@@ -103,7 +103,7 @@ export default function EditDebtScreen() {
           try {
             await deleteDebt(await getDb(), Number(params.id));
             syncAfterChange();
-            router.dismissTo('/debts');
+            router.dismissTo('/');
           } catch (e) {
             setError(errorMessage(e));
           }

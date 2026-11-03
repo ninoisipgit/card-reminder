@@ -69,6 +69,10 @@ const MIGRATIONS: string[] = [
     value TEXT NOT NULL
   );
   `,
+  // v2: optional bill amount on a paid card cycle
+  `
+  ALTER TABLE card_payments ADD COLUMN amount_cents INTEGER CHECK (amount_cents IS NULL OR amount_cents > 0);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

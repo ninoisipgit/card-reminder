@@ -25,7 +25,7 @@ export async function loadSampleData(db: Db, today: IsoDate): Promise<void> {
   await sampleCard(db, 'Metrobank', today, 2); // due soon
   await sampleCard(db, 'RCBC Flex', today, 15); // upcoming
   const unionbank = await sampleCard(db, 'UnionBank', today, -5);
-  await markCurrentCyclePaid(db, unionbank, today, addDays(today, -6)); // paid on time; next statement not out yet
+  await markCurrentCyclePaid(db, unionbank, today, addDays(today, -6), 845_000); // paid on time; next statement not out yet
 
   const mama = await addDebt(db, {
     personName: 'Mama', direction: 'owes_me', amountCents: 200_000,

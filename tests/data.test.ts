@@ -8,7 +8,10 @@ import {
   getCardStatusById,
   listCardHistory,
   listCardStatuses,
+  getPayment,
   markCurrentCyclePaid,
+  setPaymentAmount,
+  spendingSummary,
   undoLastPayment,
   updateCard,
 } from '../src/data/cards';
@@ -16,6 +19,7 @@ import { DataError } from '../src/data/db';
 import {
   addDebt,
   addRepayment,
+  allocatePayment,
   deleteDebt,
   deletePerson,
   deleteRepayment,
@@ -28,10 +32,13 @@ import {
   listPersonBalances,
   listRepayments,
   listSettledDebts,
+  payLumpSum,
+  settleAllWithPerson,
+  undoSettleAll,
   updateDebt,
 } from '../src/data/debts';
 import { loadSampleData } from '../src/data/sample';
-import { migrate } from '../src/data/schema';
+import { migrate, SCHEMA_VERSION } from '../src/data/schema';
 import { formatPeso, parsePesoToCents } from '../src/lib/money';
 
 import { createNodeDb, freshDb } from './node-db';
@@ -44,7 +51,7 @@ describe('schema', () => {
     await migrate(db);
     await migrate(db);
     const v = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
-    assert.equal(v?.user_version, 1);
+    assert.equal(v?.user_version, SCHEMA_VERSION);
   });
 });
 
@@ -62,6 +69,29 @@ describe('cards', () => {
     const s = await getCardStatusById(db, id, '2026-10-01');
     assert.equal(s.current.due, '2026-10-20');
     assert.equal(s.current.reminder, '2026-10-17');
+  });
+
+  it('bill amount is optional, can be set later, and feeds the spending summary', async () => {
+    const db = await freshDb();
+    const id = await addCard(db, { name: 'BPI', statementDay: 5 }, '2026-08-01');
+    await assert.rejects(markCurrentCyclePaid(db, id, '2026-08-10', '2026-08-10', 0), rejectsWith('INVALID_INPUT'));
+    const aug = await markCurrentCyclePaid(db, id, '2026-08-10', '2026-08-10', 1_250_000);
+    assert.equal(aug.amountCents, 1_250_000);
+    const sep = await markCurrentCyclePaid(db, id, '2026-09-10'); // no amount
+    assert.equal(sep.amountCents, null);
+    assert.equal(spendingSummary(await listCardHistory(db, id))?.months, 1);
+
+    await setPaymentAmount(db, sep.id, 750_000);
+    assert.equal((await getPayment(db, sep.id)).amountCents, 750_000);
+    assert.deepEqual(spendingSummary(await listCardHistory(db, id)), {
+      months: 2,
+      totalCents: 2_000_000,
+      averageCents: 1_000_000,
+    });
+    await setPaymentAmount(db, sep.id, null);
+    assert.equal((await getPayment(db, sep.id)).amountCents, null);
+    await assert.rejects(setPaymentAmount(db, 999, 100), rejectsWith('NOT_FOUND'));
+    assert.equal(spendingSummary([]), null);
   });
 
   it('mark paid moves to the next cycle; undo restores it', async () => {
@@ -141,6 +171,59 @@ describe('debts', () => {
     assert.equal(people.length, 1);
     assert.deepEqual(await getPerson(db, people[0].id), { id: people[0].id, name: 'Mama' });
     await assert.rejects(getPerson(db, 999), rejectsWith('NOT_FOUND'));
+  });
+
+  it('lump sum pays the oldest debts first and can be undone', async () => {
+    const db = await freshDb();
+    const newer = await addDebt(db, lend({ amountCents: 50_000, lentOn: '2026-10-12', description: 'Load' }));
+    const older = await addDebt(db, lend({ amountCents: 70_000, lentOn: '2026-10-05', description: 'Groceries' }));
+    const mine = await addDebt(db, lend({ direction: 'i_owe', amountCents: 10_000, lentOn: '2026-10-01' }));
+    const mama = (await listPeople(db))[0];
+
+    const plan = allocatePayment(await listOpenDebts(db, mama.id).then((o) => o.filter((d) => d.direction === 'owes_me')), 100_000);
+    assert.deepEqual(plan.map((a) => [a.debt.id, a.payCents]), [[older, 70_000], [newer, 30_000]]);
+
+    await assert.rejects(payLumpSum(db, mama.id, 'owes_me', 120_001, '2026-10-31'), rejectsWith('OVERPAYMENT'));
+    const r = await payLumpSum(db, mama.id, 'owes_me', 100_000, '2026-10-31');
+    assert.equal(r.settledCount, 1);
+    assert.equal(r.owedToMeCents, 100_000);
+    assert.equal((await getDebt(db, older)).settledOn, '2026-10-31');
+    assert.equal((await getDebt(db, newer)).remainingCents, 20_000);
+    assert.equal((await getDebt(db, mine)).remainingCents, 10_000); // other direction untouched
+
+    await undoSettleAll(db, r.repaymentIds);
+    assert.equal((await getDebt(db, older)).remainingCents, 70_000);
+    assert.equal((await getDebt(db, newer)).remainingCents, 50_000);
+  });
+
+  it('settle all closes every open debt with a person, and can be undone', async () => {
+    const db = await freshDb();
+    const a = await addDebt(db, lend({ amountCents: 100_000 }));
+    await addDebt(db, lend({ amountCents: 50_000 }));
+    await addDebt(db, lend({ direction: 'i_owe', amountCents: 20_000 }));
+    await addDebt(db, lend({ personName: 'Kuya', amountCents: 9_000 }));
+    await addRepayment(db, a, 30_000, '2026-10-10');
+    const mama = (await listPeople(db)).find((p) => p.name === 'Mama')!;
+
+    // Only what they owe me
+    const r = await settleAllWithPerson(db, mama.id, '2026-10-31', 'owes_me');
+    assert.equal(r.settledCount, 2);
+    assert.equal(r.owedToMeCents, 120_000);
+    assert.equal(r.iOweCents, 0);
+    const left = await listOpenDebts(db, mama.id);
+    assert.deepEqual(left.map((d) => d.direction), ['i_owe']);
+    assert.equal((await getDebt(db, a)).settledOn, '2026-10-31');
+    assert.equal((await listOpenDebts(db)).length, 2); // Kuya untouched
+
+    await undoSettleAll(db, r.repaymentIds);
+    assert.equal((await listOpenDebts(db, mama.id)).length, 3);
+    assert.equal((await getDebt(db, a)).remainingCents, 70_000); // earlier partial kept
+
+    // Both sides
+    const both = await settleAllWithPerson(db, mama.id, '2026-10-31');
+    assert.equal(both.settledCount, 3);
+    assert.equal(both.iOweCents, 20_000);
+    await assert.rejects(settleAllWithPerson(db, mama.id, '2026-10-31'), rejectsWith('ALREADY_SETTLED'));
   });
 
   it('partial repayments reduce the balance; the last one settles the debt', async () => {

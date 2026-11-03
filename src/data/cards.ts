@@ -27,6 +27,8 @@ export type CardPayment = {
   statementDate: IsoDate;
   dueDate: IsoDate;
   paidOn: IsoDate;
+  /** The statement's bill amount, if entered. */
+  amountCents: number | null;
   /** Paid on or before the due date. */
   onTime: boolean;
 };
@@ -47,6 +49,7 @@ type PaymentRow = {
   statement_date: string;
   due_date: string;
   paid_on: string;
+  amount_cents: number | null;
 };
 
 const CARD_SELECT = `
@@ -73,6 +76,7 @@ function toPayment(row: PaymentRow): CardPayment {
     statementDate: row.statement_date,
     dueDate: row.due_date,
     paidOn: row.paid_on,
+    amountCents: row.amount_cents ?? null,
     onTime: toDayNumber(row.paid_on) <= toDayNumber(row.due_date),
   };
 }
@@ -155,16 +159,19 @@ export async function markCurrentCyclePaid(
   cardId: number,
   today: IsoDate,
   paidOn: IsoDate = today,
+  amountCents: number | null = null,
 ): Promise<CardPayment> {
   assertIsoDate(paidOn, 'Paid on');
+  assertAmount(amountCents);
   const card = await getCard(db, cardId);
   const { cycle } = firstUnpaidCycle(card);
   if (toDayNumber(today) < toDayNumber(cycle.statement)) {
     throw new DataError('STATEMENT_NOT_OUT', 'This month is already paid. The next statement is not out yet.');
   }
   const res = await db.runAsync(
-    `INSERT INTO card_payments (card_id, statement_date, due_date, paid_on, created_at) VALUES (?, ?, ?, ?, ?)`,
-    cardId, cycle.statement, cycle.due, paidOn, nowIso(),
+    `INSERT INTO card_payments (card_id, statement_date, due_date, paid_on, amount_cents, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    cardId, cycle.statement, cycle.due, paidOn, amountCents, nowIso(),
   );
   return toPayment({
     id: res.lastInsertRowId,
@@ -172,13 +179,49 @@ export async function markCurrentCyclePaid(
     statement_date: cycle.statement,
     due_date: cycle.due,
     paid_on: paidOn,
+    amount_cents: amountCents,
   });
+}
+
+function assertAmount(amountCents: number | null): void {
+  if (amountCents !== null && (!Number.isSafeInteger(amountCents) || amountCents <= 0)) {
+    throw new DataError('INVALID_INPUT', 'Bill amount must be more than ₱0.');
+  }
+}
+
+/** Sets or clears (null) the bill amount of a paid cycle. */
+export async function setPaymentAmount(db: Db, paymentId: number, amountCents: number | null): Promise<void> {
+  assertAmount(amountCents);
+  const res = await db.runAsync('UPDATE card_payments SET amount_cents = ? WHERE id = ?', amountCents, paymentId);
+  if (res.changes === 0) throw new DataError('NOT_FOUND', 'Payment not found.');
+}
+
+export async function getPayment(db: Db, paymentId: number): Promise<CardPayment> {
+  const row = await db.getFirstAsync<PaymentRow>(
+    'SELECT id, card_id, statement_date, due_date, paid_on, amount_cents FROM card_payments WHERE id = ?',
+    paymentId,
+  );
+  if (!row) throw new DataError('NOT_FOUND', 'Payment not found.');
+  return toPayment(row);
+}
+
+export type SpendingSummary = { months: number; totalCents: number; averageCents: number };
+
+/** Totals over the cycles that have an amount (most recent `limit` of them). null if none do. */
+export function spendingSummary(history: CardPayment[], limit = 12): SpendingSummary | null {
+  const amounts = history
+    .slice(0, limit)
+    .map((p) => p.amountCents)
+    .filter((a): a is number => a !== null);
+  if (amounts.length === 0) return null;
+  const totalCents = amounts.reduce((t, a) => t + a, 0);
+  return { months: amounts.length, totalCents, averageCents: Math.round(totalCents / amounts.length) };
 }
 
 /** Undo for a mistaken tap: removes the most recent paid cycle, restoring it as unpaid. */
 export async function undoLastPayment(db: Db, cardId: number): Promise<CardPayment> {
   const row = await db.getFirstAsync<PaymentRow>(
-    `SELECT id, card_id, statement_date, due_date, paid_on FROM card_payments
+    `SELECT id, card_id, statement_date, due_date, paid_on, amount_cents FROM card_payments
      WHERE card_id = ? ORDER BY statement_date DESC LIMIT 1`,
     cardId,
   );
@@ -190,7 +233,7 @@ export async function undoLastPayment(db: Db, cardId: number): Promise<CardPayme
 /** Paid cycles, newest first. */
 export async function listCardHistory(db: Db, cardId: number): Promise<CardPayment[]> {
   const rows = await db.getAllAsync<PaymentRow>(
-    `SELECT id, card_id, statement_date, due_date, paid_on FROM card_payments
+    `SELECT id, card_id, statement_date, due_date, paid_on, amount_cents FROM card_payments
      WHERE card_id = ? ORDER BY statement_date DESC`,
     cardId,
   );

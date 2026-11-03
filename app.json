@@ -2,7 +2,7 @@
   "expo": {
     "name": "Card Reminder",
     "slug": "card-reminder",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "cardreminder",
@@ -63,7 +63,18 @@
         }
       ],
       "expo-sqlite",
-      "./plugins/with-no-minify"
+      "./plugins/with-no-minify",
+      "expo-sharing",
+      [
+        "expo-media-library",
+        {
+          "savePhotosPermission": "Save your unpaid lists as images.",
+          "isAccessMediaLocationEnabled": false,
+          "granularPermissions": [
+            "photo"
+          ]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

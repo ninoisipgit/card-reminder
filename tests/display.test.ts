@@ -32,3 +32,27 @@ it('summary counts overdue and due this week (7 days) across cards and debts', a
   });
   assert.equal(attentionSummary([paid]).text, 'Nothing due this week');
 });
+
+it('share statement: oldest first, split by direction, with totals', async () => {
+  const { buildStatement } = await import('../src/lib/debt-statement');
+  const base = { personId: 1, personName: 'Mama', dueOn: null, settledOn: null, repaidCents: 0 };
+  const debt = (id: number, direction: 'owes_me' | 'i_owe', lentOn: string, amount: number, repaid = 0, description = '') => ({
+    ...base, id, direction, lentOn, description, amountCents: amount, repaidCents: repaid, remainingCents: amount - repaid,
+  });
+  const s = buildStatement(
+    'Mama',
+    [
+      debt(1, 'owes_me', '2026-10-12', 50_000, 0, 'Load'),
+      debt(2, 'owes_me', '2026-10-05', 100_000, 30_000, 'Groceries'),
+      debt(3, 'i_owe', '2026-10-01', 20_000),
+    ],
+    '2026-11-03',
+  );
+  assert.deepEqual(s.sections.map((x) => x.title), ['Mama owes', 'I owe Mama']);
+  assert.deepEqual(s.sections[0].rows.map((r) => r.description), ['Groceries', 'Load']);
+  assert.equal(s.sections[0].totalCents, 120_000);
+  assert.equal(s.sections[1].rows[0].description, 'Money borrowed');
+  assert.equal(s.itemCount, 3);
+  assert.equal(s.paidSoFarCents, 30_000);
+  assert.equal(s.netCents, 100_000);
+});
